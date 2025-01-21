@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <stdio.h>
 
 int main(){
     char input;
@@ -10,7 +11,8 @@ int main(){
         write(2, "Error\n", 6);
         return 1;
     }
-
+    printf("\n");
     write(1, &input, 1);
+    printf("\n\n");
     return 0;
 }
