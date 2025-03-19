@@ -3,11 +3,10 @@
 #include <fcntl.h>
 
 int main(){
-    const char *filename = "nums.dat";
     int nums[100];
     ssize_t bytesRead;
 
-    int writeFd = open(filename, O_CREAT | O_WRONLY, 0644);
+    int writeFd = open("nums.dat", O_CREAT | O_WRONLY, 0644);
     if(writeFd == -1){
         printf("Error abriendo el archivo writeFd\n");
         return 1;
@@ -25,7 +24,7 @@ int main(){
     }
     close(writeFd);
 
-    int readFd = open(filename, O_RDONLY);
+    int readFd = open("nums.dat", O_RDONLY);
     if(readFd == -1){
         printf("Error abriendo el archivo readFd\n");
         return 1;
