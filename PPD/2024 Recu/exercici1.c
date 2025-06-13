@@ -53,7 +53,6 @@ int main(char *argv[], int argc) {
 
     double *v = (double *)malloc(N*sizeof(double));
     inititialize(v, N);
-    
     double max;
     int max_idx;
 
