@@ -27,6 +27,11 @@
                     <div class="btn-glow"></div>
                 </button>
                 
+                <button class="game-btn secondary" id="tutorialBtn">
+                    <span class="btn-text">INFORMACIÓN</span>
+                    <div class="btn-glow"></div>
+                </button>
+                
                 <button class="game-btn secondary" id="optionsBtn">
                     <span class="btn-text">OPCIONES</span>
                     <div class="btn-glow"></div>
@@ -40,57 +45,296 @@
             
         </div>
         
-        <!-- Modal de selección de dificultad -->
-        <div class="difficulty-modal hidden" id="difficultyModal">
-            <div class="difficulty-modal-content">
-                <div class="difficulty-header">
-                    <h2>Configuración del Juego</h2>
-                    <p class="difficulty-subtitle">Elige la dificultad y el tamaño del tablero</p>
+        <!-- Pantalla de Tutorial -->
+        <div class="tutorial-screen hidden" id="tutorialScreen">
+            <div class="tutorial-container">
+                <div class="tutorial-header">
+                    <h1>INFORMACIÓN DEL JUEGO</h1>
+                    <p class="tutorial-subtitle">Resuelve tus dudas sobre Pass Side</p>
                 </div>
                 
-                <div class="board-selection">
-                    <h3>Tamaño del Tablero</h3>
-                    <div class="board-options">
-                        <button class="board-option" data-size="express">Express (7x5)</button>
-                        <button class="board-option selected" data-size="classic">Clásico (11x9)</button>
-                        <button class="board-option" data-size="master">Maestro (15x11)</button>
-                    </div>
-                </div>
-                
-                <div class="difficulty-options">
-                    <div class="difficulty-option" data-level="beginner">
-                        <div class="difficulty-icon">🌱</div>
-                        <div class="difficulty-info">
-                            <h3>Principiante</h3>
-                            <p>Movimientos básicos y predecibles. Ideal para aprender el juego.</p>
+                <div class="tutorial-options">
+                    <div class="tutorial-option" id="interactiveTutorial">
+                        <div class="option-icon">
+                            <img src="icons/tutorial-interactivo.png" alt="Tutorial Interactivo" />
                         </div>
-                        <div class="difficulty-badge">Fácil</div>
+                        <h3>Aprender Jugando</h3>
+                        <p>Simulaciones interactivas con mini-tableros</p>
                     </div>
                     
-                    <div class="difficulty-option" data-level="intermediate">
-                        <div class="difficulty-icon">⚔️</div>
-                        <div class="difficulty-info">
-                            <h3>Intermedio</h3>
-                            <p>Juega agresivamente y siempre ataca cuando puede. Un oponente digno.</p>
+                    <div class="tutorial-option" id="guideTutorial">
+                        <div class="option-icon">
+                            <img src="icons/tutorial-guia.png" alt="Guía del Juego" />
                         </div>
-                        <div class="difficulty-badge">Medio</div>
-                    </div>
-                    
-                    <div class="difficulty-option" data-level="expert">
-                        <div class="difficulty-icon">🧠</div>
-                        <div class="difficulty-info">
-                            <h3>Experto</h3>
-                            <p>Anticipa tus movimientos y planifica estrategias avanzadas. ¡Un verdadero desafío!</p>
-                        </div>
-                        <div class="difficulty-badge">Difícil</div>
+                        <h3>Manual de Juego</h3>
+                        <p>Información completa sobre reglas y estrategias</p>
                     </div>
                 </div>
                 
-                <div class="difficulty-actions">
-                    <button class="game-btn secondary" id="cancelDifficulty">
+                <div class="tutorial-footer">
+                    <button class="game-btn secondary" id="backFromTutorial">
                         <span class="btn-text">CANCELAR</span>
                         <div class="btn-glow"></div>
                     </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Pantalla de Tutorial Interactivo -->
+        <div class="interactive-tutorial-screen hidden" id="interactiveTutorialScreen">
+            <div class="tutorial-container">
+                <div class="tutorial-header">
+                    <h1 id="tutorialTitle">OBJETIVO</h1>
+                    <p class="tutorial-subtitle" id="tutorialSubtitle" style="display: none;">Aprende a jugar Pass Side</p>
+                </div>
+                
+                <div class="tutorial-content">
+                    <div class="tutorial-board-container">
+                        <div class="mini-board" id="tutorialBoard">
+                            <!-- El tablero se generará dinámicamente -->
+                        </div>
+                    </div>
+                    
+                    <div class="tutorial-explanation">
+                        <div class="explanation-step active" id="step1">
+                            <div class="simple-text-content">
+                                <p>Pass Side es un juego de estrategia 1 vs 1</p>
+                                <p>Debes llevar tus fichas hasta la meta del lado contrario</p>
+                                <p>Elimina las fichas enemigas para frenar su avance</p>
+                                <p>Gana quien llegue primero a la puntuación objetivo</p>
+                            </div>
+                        </div>
+                        
+                        <div class="explanation-step" id="step2">
+                            <div class="tutorial-info-panel">
+                                <div class="tutorial-tabs">
+                                    <button class="tutorial-tab" data-zone="meta">
+                                        <span class="tab-icon tutorial-meta"></span>
+                                        <span class="tab-text">Meta</span>
+                                    </button>
+                                    <button class="tutorial-tab" data-zone="aparicion">
+                                        <span class="tab-icon tutorial-aparicion"></span>
+                                        <span class="tab-text">Aparición</span>
+                                    </button>
+                                    <button class="tutorial-tab" data-zone="campo">
+                                        <span class="tab-icon tutorial-campo"></span>
+                                        <span class="tab-text">Campo</span>
+                                    </button>
+                                    <button class="tutorial-tab" data-zone="segura">
+                                        <span class="tab-icon tutorial-segura"></span>
+                                        <span class="tab-text">Zona Segura</span>
+                                    </button>
+                                </div>
+                                <div class="tutorial-content-area">
+                                    <div class="zone-info" id="zoneInfo">
+                                        <!-- El contenido se genera dinámicamente desde JavaScript -->
+                                    </div>
+                                    <div class="team-selection" id="teamSelection" style="display: none;">
+                                        <div class="team-buttons">
+                                            <div class="team-field" data-team="blue">
+                                                <div class="team-header">
+                                                    <span class="team-icon icon-team-blue"></span>
+                                                    <span class="team-name">Equipo Azul</span>
+                                                </div>
+                                                <div class="team-description">Texto del equipo azul</div>
+                                            </div>
+                                            <div class="team-field" data-team="red">
+                                                <div class="team-header">
+                                                    <span class="team-icon icon-team-red"></span>
+                                                    <span class="team-name">Equipo Rojo</span>
+                                                </div>
+                                                <div class="team-description">Texto del equipo rojo</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Paso 3: Movimientos -->
+                        <div class="explanation-step" id="step3">
+                            <div class="tutorial-movements-panel">
+                                <div class="movement-tabs">
+                                    <button class="movement-tab" data-movement="salida">
+                                        <span class="tab-icon tutorial-salida"></span>
+                                        <span class="tab-text">Salida</span>
+                                    </button>
+                                    <button class="movement-tab" data-movement="defensivo">
+                                        <span class="tab-icon tutorial-defensivo"></span>
+                                        <span class="tab-text">Defensivo</span>
+                                    </button>
+                                    <button class="movement-tab" data-movement="ofensivo">
+                                        <span class="tab-icon tutorial-ofensivo"></span>
+                                        <span class="tab-text">Ofensivo</span>
+                                    </button>
+                                    <button class="movement-tab" data-movement="meta">
+                                        <span class="tab-icon tutorial-meta"></span>
+                                        <span class="tab-text">Meta</span>
+                                    </button>
+                                </div>
+                                <div class="movement-content-area">
+                                    <div class="movement-info" id="movementInfo">
+                                        <!-- El contenido se genera dinámicamente desde JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Paso 4: Puntuación -->
+                        <div class="explanation-step" id="step4">
+                            <div class="tutorial-movements-panel">
+                                <div class="movement-tabs">
+                                    <button class="movement-tab" data-movement="meta">
+                                        <span class="tab-icon tutorial-meta"></span>
+                                        <span class="tab-text">Meta</span>
+                                    </button>
+                                    <button class="movement-tab" data-movement="eliminacion">
+                                        <span class="tab-icon tutorial-puntos-eliminar"></span>
+                                        <span class="tab-text">Eliminación</span>
+                                    </button>
+                                </div>
+                                <div class="movement-content-area">
+                                    <div class="movement-info" id="puntuacionInfo">
+                                        <!-- El contenido se genera dinámicamente desde JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+                
+                <div class="tutorial-navigation">
+                    <div class="tutorial-nav-container">
+                        <button class="tutorial-nav-btn" id="navPrev" disabled>
+                            <span class="nav-arrow">&lt;</span>
+                        </button>
+                        
+                        <div class="tutorial-nav-steps">
+                            <button class="tutorial-step-btn" data-step="1" title="Objetivo">
+                                <span class="step-icon tutorial-menu-objetivo"></span>
+                            </button>
+                            <button class="tutorial-step-btn" data-step="2" title="Tablero">
+                                <span class="step-icon tutorial-menu-tablero"></span>
+                            </button>
+                    <button class="tutorial-step-btn" data-step="3" title="Movimientos">
+                        <span class="step-icon tutorial-menu-movimientos"></span>
+                    </button>
+                    <button class="tutorial-step-btn" data-step="4" title="Puntuación">
+                        <span class="step-icon tutorial-menu-puntuacion"></span>
+                    </button>
+                        </div>
+                        
+                        <button class="tutorial-nav-btn" id="navNext">
+                            <span class="nav-arrow">&gt;</span>
+                        </button>
+                        
+                        <button class="tutorial-nav-btn" id="finishTutorial">
+                            <span class="nav-icon tutorial-menu-salir"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal de selección de partida -->
+        <div class="game-setup-modal hidden" id="difficultyModal">
+            <div class="setup-container">
+                <!-- Columna 1: Selección de Tablero -->
+                <div class="setup-column">
+                    <div class="column-header">
+                        <h2>Modo de Juego</h2>
+                    </div>
+                    <div class="board-options">
+                        <div class="board-option" data-size="bala">
+                            <div class="board-icon">
+                                <img src="icons/mode-bullet.png" alt="Bala" />
+                            </div>
+                            <div class="option-title">Bala</div>
+                            <div class="option-subtitle">5x5</div>
+                        </div>
+                        <div class="board-option" data-size="classic">
+                            <div class="board-icon">
+                                <img src="icons/mode-classic.png" alt="Clásico" />
+                            </div>
+                            <div class="option-title">Clásico</div>
+                            <div class="option-subtitle">9x9</div>
+                        </div>
+                        <div class="board-option" data-size="marathon">
+                            <div class="board-icon">
+                                <img src="icons/mode-marathon.png" alt="Maratón" />
+                            </div>
+                            <div class="option-title">Maratón</div>
+                            <div class="option-subtitle">13x11</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Columna 2: Selección de Dificultad -->
+                <div class="setup-column">
+                    <div class="column-header">
+                        <h2>Dificultad</h2>
+                    </div>
+                    <div class="difficulty-options">
+                        <div class="difficulty-option" data-level="beginner">
+                            <div class="difficulty-icon">
+                                <img src="icons/difficulty-beginner.png" alt="Principiante" />
+                            </div>
+                            <div class="option-title">Principiante</div>
+                            <div class="option-description">Movimientos básicos y predecibles</div>
+                        </div>
+                        
+                        <div class="difficulty-option" data-level="intermediate">
+                            <div class="difficulty-icon">
+                                <img src="icons/difficulty-intermediate.png" alt="Intermedio" />
+                            </div>
+                            <div class="option-title">Intermedio</div>
+                            <div class="option-description">Balance entre ataque y defensa</div>
+                        </div>
+                        
+                        <div class="difficulty-option" data-level="expert">
+                            <div class="difficulty-icon">
+                                <img src="icons/difficulty-expert.png" alt="Experto" />
+                            </div>
+                            <div class="option-title">Experto</div>
+                            <div class="option-description">Anticipa y planifica estrategias</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Columna 3: Previsualización y Acciones -->
+                <div class="setup-column">
+                    <div class="column-header">
+                        <h2>Vista Previa</h2>
+                    </div>
+                    
+                    <!-- Tablero de previsualización -->
+                    <div class="preview-board-container">
+                        <div class="board" id="previewBoard">
+                            <!-- El tablero se generará dinámicamente aquí -->
+                        </div>
+                    </div>
+                    
+                    <!-- Información de la partida -->
+                    <div class="game-info-preview">
+                        <span class="info-item" id="piecesInfo">Información sobre la partida</span>
+                        <span class="info-separator" id="separator1" style="display: none;">|</span>
+                        <span class="info-item" id="formationsInfo" style="display: none;"></span>
+                        <span class="info-separator" id="separator2" style="display: none;">|</span>
+                        <span class="info-item" id="pointsInfo" style="display: none;"></span>
+                    </div>
+                    
+                    <!-- Botones de acción en la parte inferior -->
+                    <div class="action-buttons">
+                        <button class="game-btn secondary" id="cancelDifficulty">
+                            <span class="btn-text">CANCELAR</span>
+                            <div class="btn-glow"></div>
+                        </button>
+                        <button class="game-btn primary" id="startGame" disabled>
+                            <span class="btn-text">JUGAR</span>
+                            <div class="btn-glow"></div>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -185,13 +429,20 @@
                         <div class="board" id="gameBoard">
                             <!-- El tablero se generará dinámicamente con JavaScript -->
                         </div>
-                        <div class="turn-counter">
-                            <div class="turn-group">
-                                <span class="turn-label">Turno</span>
-                                <span class="turn-number" id="turnNumber">1</span>
+                        <div class="game-info-container">
+                            <div class="turn-counter">
+                                <div class="turn-group">
+                                    <span class="turn-label">Turno</span>
+                                    <span class="turn-number" id="turnNumber">1</span>
+                                </div>
+                                <span class="separator">|</span>
+                                <span class="time-number" id="gameTime">0:00</span>
                             </div>
-                            <span class="separator">|</span>
-                            <span class="time-number" id="gameTime">0:00</span>
+                            <div class="board-info">
+                                <span class="board-info-value" id="boardSizeDisplay">9x9</span>
+                                <span class="separator">|</span>
+                                <span class="board-info-value" id="boardPointsDisplay">7 pts</span>
+                            </div>
                         </div>
                     </div>
 

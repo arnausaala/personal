@@ -1,10 +1,10 @@
-// Variables globales
+﻿// Variables globales
 let gameSettings = {
     soundEffects: true,
     theme: 'dark', // 'dark' o 'light'
     playerName: 'Jugador',
     cpuDifficulty: 'beginner', // 'beginner', 'intermediate', 'expert'
-    boardSize: 'classic' // 'express', 'classic', 'master'
+    boardSize: 'classic' // 'bala', 'classic', 'marathon'
 };
 
 // Sistema de distribuciones ponderadas
@@ -20,11 +20,12 @@ const distributions = [
 
 // Patrones específicos para cada tamaño de tablero
 const BOARD_PATTERNS = {
-    express: [
-        { name: "Centro Puro", pattern: "oxoxo", weight: 0.30 }, // 3 fichas: posiciones 0, 2, 4
-        { name: "Lateral", pattern: "oxoox", weight: 0.20 },     // 3 fichas: posiciones 0, 2, 3
-        { name: "Compacta", pattern: "ooxox", weight: 0.25 },    // 3 fichas: posiciones 0, 1, 3
-        { name: "Distribución Aleatoria", pattern: "random", weight: 0.25 }
+    bala: [
+        { name: "Cadena Alterna", pattern: "oxoxo", weight: 0.25 }, 
+        { name: "Centro Puro", pattern: "xooox", weight: 0.25 },
+        { name: "Lateral Izquierdo", pattern: "oooxx", weight: 0.10 },    
+        { name: "Lateral Derecho", pattern: "xxooo", weight: 0.10 },   
+        { name: "Distribución Aleatoria", pattern: "random", weight: 0.30 }
     ],
     classic: [
         { name: "Centro Puro", pattern: "xooooooox", weight: 0.20 },
@@ -35,7 +36,7 @@ const BOARD_PATTERNS = {
         { name: "Triple Centro", pattern: "ooxoooxoo", weight: 0.10 },
         { name: "Distribución Aleatoria", pattern: "random", weight: 0.30 }
     ],
-    master: [
+    marathon: [
         { name: "Doble Núcleo", pattern: "xooooxoooox", weight: 0.20 }, // 8 fichas
         { name: "Fortaleza Lateral", pattern: "ooooxxxoooo", weight: 0.10 }, // 8 fichas  
         { name: "Cuatro Carriles", pattern: "ooxooxooxoo", weight: 0.10 }, // 8 fichas
@@ -85,29 +86,43 @@ function generateRandomDistribution() {
     const numPieces = config.pieces;
     const numCols = config.cols;
     
+    // Obtener patrones predefinidos para evitar duplicados
+    const patterns = BOARD_PATTERNS[gameSettings.boardSize];
+    const predefinedPatterns = patterns.filter(p => p.pattern !== "random").map(p => p.pattern);
+    
     // Calcular el número total de combinaciones posibles
     const totalCombinations = factorial(numCols) / (factorial(numPieces) * factorial(numCols - numPieces));
     
+    // Calcular cuántas formaciones aleatorias son realmente posibles (excluyendo predefinidas)
+    const availableRandomCombinations = totalCombinations - predefinedPatterns.length;
+    
     // Calcular el peso individual de cada distribución aleatoria
-    const patterns = BOARD_PATTERNS[gameSettings.boardSize];
     const randomDist = patterns.find(d => d.pattern === "random");
-    const individualWeight = randomDist ? randomDist.weight / totalCombinations : 0.01;
+    const individualWeight = randomDist ? randomDist.weight / availableRandomCombinations : 0.01;
     
-    const positions = Array.from({length: numCols}, (_, i) => i);
-    const selectedPositions = [];
+    let pattern;
+    let attempts = 0;
+    const maxAttempts = 100; // Evitar bucle infinito
     
-    // Seleccionar el número correcto de posiciones aleatorias
-    while (selectedPositions.length < numPieces) {
-        const randomIndex = Math.floor(Math.random() * positions.length);
-        const selectedPosition = positions.splice(randomIndex, 1)[0];
-        selectedPositions.push(selectedPosition);
-    }
-    
-    // Crear el patrón
-    let pattern = "x".repeat(numCols); // Espacios vacíos
-    for (let pos of selectedPositions) {
-        pattern = pattern.substring(0, pos) + "o" + pattern.substring(pos + 1);
-    }
+    do {
+        const positions = Array.from({length: numCols}, (_, i) => i);
+        const selectedPositions = [];
+        
+        // Seleccionar el número correcto de posiciones aleatorias
+        while (selectedPositions.length < numPieces) {
+            const randomIndex = Math.floor(Math.random() * positions.length);
+            const selectedPosition = positions.splice(randomIndex, 1)[0];
+            selectedPositions.push(selectedPosition);
+        }
+        
+        // Crear el patrón
+        pattern = "x".repeat(numCols); // Espacios vacíos
+        for (let pos of selectedPositions) {
+            pattern = pattern.substring(0, pos) + "o" + pattern.substring(pos + 1);
+        }
+        
+        attempts++;
+    } while (predefinedPatterns.includes(pattern) && attempts < maxAttempts);
     
     return {
         name: "Aleatoria",
@@ -558,6 +573,174 @@ const audioManager = {
             }
         }
     }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
 };
 
 // Variables del juego
@@ -600,9 +783,9 @@ let POINTS_TO_WIN = 7; // Se actualizará dinámicamente
 
 // Configuraciones de tablero
 const BOARD_CONFIGS = {
-    express: { rows: 7, cols: 5, pieces: 3, points: 3 },
+    bala: { rows: 7, cols: 5, pieces: 3, points: 3 },
     classic: { rows: 11, cols: 9, pieces: 7, points: 7 },
-    master: { rows: 15, cols: 11, pieces: 8, points: 8 }
+    marathon: { rows: 15, cols: 11, pieces: 8, points: 8 }
 };
 
 // Función para configurar el tablero según el tamaño seleccionado
@@ -629,7 +812,7 @@ function updateBoardCellSize() {
     let targetWidth, currentWidth;
     
     // Configuración específica por tablero
-    if (gameSettings.boardSize === 'express') {
+    if (gameSettings.boardSize === 'bala') {
         targetWidth = 375; // Ancho deseado para Express
         currentWidth = targetWidth / BOARD_COLS; // Tamaño de casilla para Express
     } else {
@@ -644,7 +827,7 @@ function updateBoardCellSize() {
     
     // Calcular tamaño de las fichas
     let pieceSize;
-    if (gameSettings.boardSize === 'express') {
+    if (gameSettings.boardSize === 'bala') {
         // Para Express, fichas del 80% del tamaño proporcional
         pieceSize = Math.round(currentWidth * 0.73 * 0.8);
     } else {
@@ -715,6 +898,174 @@ function getCellType(row) {
     } else {
         return CELL_TYPES.NEUTRAL2;   // Campo del jugador rojo
     }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
 }
 
 function placePieces() {
@@ -791,9 +1142,9 @@ function showFormationInfo() {
         </div>
     `;
     
-    // Agregar evento click para mostrar modal
+    // Agregar evento click para mostrar/ocultar modal
     cpuFormationDiv.addEventListener('click', () => {
-        showFormationModal(gameState.redDistribution, 'CPU', 'red');
+        toggleFormationModal(gameState.redDistribution, 'CPU', 'red');
     });
     
     // Insertar al final de la columna izquierda
@@ -811,9 +1162,9 @@ function showFormationInfo() {
         </div>
     `;
     
-    // Agregar evento click para mostrar modal
+    // Agregar evento click para mostrar/ocultar modal
     playerFormationDiv.addEventListener('click', () => {
-        showFormationModal(gameState.blueDistribution, 'Tu Formación', 'blue');
+        toggleFormationModal(gameState.blueDistribution, 'Tu Formación', 'blue');
     });
     
     // Insertar al final de la columna derecha
@@ -833,6 +1184,191 @@ function createFormationVisual(pattern, teamColor) {
     return `<div class="formation-grid">${pieces.join('')}</div>`;
 }
 
+// Función para alternar (mostrar/ocultar) modal de formación
+function toggleFormationModal(distribution, title, teamColor) {
+    // Determinar el lado según el equipo (CPU=izquierda, Jugador=derecha)
+    const sideClass = teamColor === 'red' ? 'formation-panel-left' : 'formation-panel-right';
+    
+    // Verificar si ya existe un panel para este equipo
+    const existingPanel = document.querySelector(`.formation-side-panel.${sideClass}`);
+    
+    if (existingPanel) {
+        // Si existe, ocultarlo
+        hideFormationModal({ target: existingPanel.querySelector('.formation-panel-close') });
+    } else {
+        // Si no existe, mostrarlo
+        showFormationModal(distribution, title, teamColor);
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
 // Función para mostrar información detallada de formación en panel lateral
 function showFormationModal(distribution, title, teamColor) {
     // Detectar el tema actual
@@ -842,7 +1378,11 @@ function showFormationModal(distribution, title, teamColor) {
     // Determinar el lado según el equipo (CPU=izquierda, Jugador=derecha)
     const sideClass = teamColor === 'red' ? 'formation-panel-left' : 'formation-panel-right';
     
-    // No remover paneles existentes - permitir múltiples modales
+    // Remover panel existente si existe para evitar duplicados
+    const existingPanel = document.querySelector(`.formation-side-panel.${sideClass}`);
+    if (existingPanel) {
+        existingPanel.remove();
+    }
     
     // Crear panel lateral
     const panel = document.createElement('div');
@@ -895,9 +1435,16 @@ function showFormationModal(distribution, title, teamColor) {
 
 // Función para ocultar información detallada de formación
 function hideFormationModal(event) {
-    // Encontrar el panel más cercano al botón que se clickeó
-    const closeBtn = event.target;
-    const panel = closeBtn.closest('.formation-side-panel');
+    let panel;
+    
+    if (event.target && event.target.closest) {
+        // Si se llama desde un botón de cerrar
+        const closeBtn = event.target;
+        panel = closeBtn.closest('.formation-side-panel');
+    } else {
+        // Si se llama directamente desde toggleFormationModal
+        panel = event.target;
+    }
     
     if (panel) {
         panel.classList.add('hide');
@@ -905,6 +1452,185 @@ function hideFormationModal(event) {
             panel.remove();
         }, 300);
     }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para limpiar todos los modales de formaciones
+function clearAllFormationModals() {
+    const allModals = document.querySelectorAll('.formation-side-panel');
+    allModals.forEach(modal => {
+        modal.classList.add('hide');
+        setTimeout(() => {
+            modal.remove();
+        }, 300);
+    });
 }
 
 // Función para obtener descripción de la formación
@@ -1165,6 +1891,174 @@ function createBoardHTML() {
         
         boardElement.appendChild(rowElement);
     }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
 }
 
 function handleCellClick(row, col) {
@@ -1442,6 +2336,174 @@ function handleCellClick(row, col) {
     }
 }
 
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
 // Validación de movimientos según las reglas del juego
 function isValidMove(from, to, color) {
     const dRow = to.row - from.row;
@@ -1465,91 +2527,236 @@ function isValidMove(from, to, color) {
         if (!canEliminate(from, to, color)) return false;
     }
 
-    // Reglas específicas por zona del tablero
+    // Reglas específicas para el modo Bala (5 filas de juego: 2 propio + 1 seguro + 2 contrario)
+    if (gameSettings.boardSize === 'bala') {
     if (color === 'blue') {
-        // Campo propio (filas 7-10, índices 6-9) - últimas 4 filas incluyendo aparición
-        if (from.row >= 6 && from.row <= 9) {
-            // En la fila de aparición (fila 10, índice 9): 1 o 2 casillas adelante o 1 o 2 hacia el lado
-            if (from.row === BLUE_START_ROW) {
-                const oneForward = dRow === -1 && dCol === 0;
-                const twoForward = dRow === -2 && dCol === 0;
-                const oneSide = dRow === 0 && Math.abs(dCol) === 1;
-                const twoSide = dRow === 0 && Math.abs(dCol) === 2;
-                return oneForward || twoForward || oneSide || twoSide;
+            // En modo Bala: fila de aparición azul (fila 5, índice 5) y siguiente fila (fila 4, índice 4)
+            // Solo movimientos de 1 casilla: recto o hacia los lados
+            if (from.row === BLUE_START_ROW || from.row === BLUE_START_ROW - 1) {
+                const forward = dRow === -1 && dCol === 0;
+                const left = dRow === 0 && dCol === -1;
+                const right = dRow === 0 && dCol === 1;
+                return forward || left || right;
             }
-            // En las otras filas del campo propio: 1 adelante o 1 hacia el lado
-            else {
-                const oneForward = dRow === -1 && dCol === 0;
-                const oneSide = dRow === 0 && Math.abs(dCol) === 1;
-                return oneForward || oneSide;
+            // Zona segura (fila 3, índice 3): movimientos recto o diagonal hacia adelante
+            else if (from.row === 3) {
+                const forward = dRow === -1 && dCol === 0;
+                const diagonalLeft = dRow === -1 && dCol === -1;
+                const diagonalRight = dRow === -1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
             }
-        }
-        // Zona segura (fila 6, índice 5): 1 adelante o diagonal adelante (3 movimientos posibles)
-        else if (from.row === 5) {
-            const forward = dRow === -1 && dCol === 0;
-            const diagonalLeft = dRow === -1 && dCol === -1;
-            const diagonalRight = dRow === -1 && dCol === 1;
-            return forward || diagonalLeft || diagonalRight;
-        }
-        // Campo contrario (filas 1-5, índices 0-4): 1 adelante o diagonal adelante
-        else if (from.row >= 0 && from.row <= 4) {
-            const forward = dRow === -1 && dCol === 0;
-            const diagonalLeft = dRow === -1 && dCol === -1;
-            const diagonalRight = dRow === -1 && dCol === 1;
-            return forward || diagonalLeft || diagonalRight;
-        }
-        // Meta azul (fila 1, índice 0): no se puede mover desde aquí
-        else if (from.row === BLUE_GOAL_ROW) {
-            return false;
-        }
-        // Permitir movimiento a la meta azul desde fila 1 o desde fila de aparición roja (fila 1)
-        else if (to.row === BLUE_GOAL_ROW) {
-            // Se puede llegar a la meta desde la fila 1 (índice 1) con movimiento hacia adelante
-            // O desde cualquier posición en la fila 1 (fila de aparición roja)
-            return from.row === RED_START_ROW;
-        }
-    } else { // color === 'red'
-        // Campo propio (filas 2-5, índices 1-4) - primeras 4 filas incluyendo aparición
-        if (from.row >= 1 && from.row <= 4) {
-            // En la fila de aparición (fila 2, índice 1): 1 o 2 casillas adelante o 1 o 2 hacia el lado
-            if (from.row === RED_START_ROW) {
-                const oneForward = dRow === 1 && dCol === 0;
-                const twoForward = dRow === 2 && dCol === 0;
-                const oneSide = dRow === 0 && Math.abs(dCol) === 1;
-                const twoSide = dRow === 0 && Math.abs(dCol) === 2;
-                return oneForward || twoForward || oneSide || twoSide;
+            // Campo contrario (filas 0-2, índices 0-2): movimientos normales
+            else if (from.row >= 0 && from.row <= 2) {
+                const forward = dRow === -1 && dCol === 0;
+                const diagonalLeft = dRow === -1 && dCol === -1;
+                const diagonalRight = dRow === -1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
             }
-            // En las otras filas del campo propio: 1 adelante o 1 hacia el lado
-            else {
-                const oneForward = dRow === 1 && dCol === 0;
-                const oneSide = dRow === 0 && Math.abs(dCol) === 1;
-                return oneForward || oneSide;
+            // Meta azul (fila 0, índice 0): no se puede mover desde aquí
+            else if (from.row === BLUE_GOAL_ROW) {
+                return false;
+            }
+        } else { // color === 'red'
+            // En modo Bala: fila de aparición roja (fila 1, índice 1) y siguiente fila (fila 2, índice 2)
+            // Solo movimientos de 1 casilla: recto o hacia los lados
+            if (from.row === RED_START_ROW || from.row === RED_START_ROW + 1) {
+                const forward = dRow === 1 && dCol === 0;
+                const left = dRow === 0 && dCol === -1;
+                const right = dRow === 0 && dCol === 1;
+                return forward || left || right;
+            }
+            // Zona segura (fila 3, índice 3): movimientos recto o diagonal hacia adelante
+            else if (from.row === 3) {
+                const forward = dRow === 1 && dCol === 0;
+                const diagonalLeft = dRow === 1 && dCol === -1;
+                const diagonalRight = dRow === 1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
+            }
+            // Campo contrario (filas 4-6, índices 4-6): movimientos normales
+            else if (from.row >= 4 && from.row <= 6) {
+                const forward = dRow === 1 && dCol === 0;
+                const diagonalLeft = dRow === 1 && dCol === -1;
+                const diagonalRight = dRow === 1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
+            }
+            // Meta roja (fila 6, índice 6): no se puede mover desde aquí
+            else if (from.row === RED_GOAL_ROW) {
+                return false;
             }
         }
-        // Zona segura (fila 6, índice 5): 1 adelante o diagonal adelante (3 movimientos posibles)
-        else if (from.row === 5) {
-            const forward = dRow === 1 && dCol === 0;
-            const diagonalLeft = dRow === 1 && dCol === -1;
-            const diagonalRight = dRow === 1 && dCol === 1;
-            return forward || diagonalLeft || diagonalRight;
+        return false; // Si no coincide con ninguna regla del modo Bala
+    }
+
+    // Reglas específicas para modo Classic (9 filas de juego: 4 propio + 1 seguro + 4 contrario)
+    if (gameSettings.boardSize === 'classic') {
+        if (color === 'blue') {
+            // Campo propio azul: filas 6-9 (4 filas: 6,7,8,9)
+            if (from.row >= 6 && from.row <= 9) {
+                // En la fila de aparición (fila 9): 1 o 2 casillas adelante o 1 o 2 hacia el lado
+                if (from.row === BLUE_START_ROW) {
+                    const oneForward = dRow === -1 && dCol === 0;
+                    const twoForward = dRow === -2 && dCol === 0;
+                    const oneSide = dRow === 0 && Math.abs(dCol) === 1;
+                    const twoSide = dRow === 0 && Math.abs(dCol) === 2;
+                    return oneForward || twoForward || oneSide || twoSide;
+                }
+                // En las otras filas del campo propio: 1 adelante o 1 hacia el lado
+                else {
+                    const oneForward = dRow === -1 && dCol === 0;
+                    const oneSide = dRow === 0 && Math.abs(dCol) === 1;
+                    return oneForward || oneSide;
+                }
+            }
+            // Zona segura (fila 5): 1 adelante o diagonal adelante
+            else if (from.row === 5) {
+                const forward = dRow === -1 && dCol === 0;
+                const diagonalLeft = dRow === -1 && dCol === -1;
+                const diagonalRight = dRow === -1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
+            }
+            // Campo contrario: filas 1-4 (4 filas: 1,2,3,4): 1 adelante o diagonal adelante
+            else if (from.row >= 1 && from.row <= 4) {
+                const forward = dRow === -1 && dCol === 0;
+                const diagonalLeft = dRow === -1 && dCol === -1;
+                const diagonalRight = dRow === -1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
+            }
+            // Meta azul (fila 0): no se puede mover desde aquí
+            else if (from.row === BLUE_GOAL_ROW) {
+                return false;
+            }
+            // Permitir movimiento a la meta azul desde fila de aparición roja
+            else if (to.row === BLUE_GOAL_ROW) {
+                return from.row === RED_START_ROW;
+            }
+        } else { // color === 'red'
+            // Campo propio rojo: filas 1-4 (4 filas: 1,2,3,4)
+            if (from.row >= 1 && from.row <= 4) {
+                // En la fila de aparición (fila 1): 1 o 2 casillas adelante o 1 o 2 hacia el lado
+                if (from.row === RED_START_ROW) {
+                    const oneForward = dRow === 1 && dCol === 0;
+                    const twoForward = dRow === 2 && dCol === 0;
+                    const oneSide = dRow === 0 && Math.abs(dCol) === 1;
+                    const twoSide = dRow === 0 && Math.abs(dCol) === 2;
+                    return oneForward || twoForward || oneSide || twoSide;
+                }
+                // En las otras filas del campo propio: 1 adelante o 1 hacia el lado
+                else {
+                    const oneForward = dRow === 1 && dCol === 0;
+                    const oneSide = dRow === 0 && Math.abs(dCol) === 1;
+                    return oneForward || oneSide;
+                }
+            }
+            // Zona segura (fila 5): 1 adelante o diagonal adelante
+            else if (from.row === 5) {
+                const forward = dRow === 1 && dCol === 0;
+                const diagonalLeft = dRow === 1 && dCol === -1;
+                const diagonalRight = dRow === 1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
+            }
+            // Campo contrario: filas 6-9 (4 filas: 6,7,8,9): 1 adelante o diagonal adelante
+            else if (from.row >= 6 && from.row <= 9) {
+                const forward = dRow === 1 && dCol === 0;
+                const diagonalLeft = dRow === 1 && dCol === -1;
+                const diagonalRight = dRow === 1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
+            }
+            // Meta roja (fila 10): no se puede mover desde aquí
+            else if (from.row === RED_GOAL_ROW) {
+                return false;
+            }
+            // Permitir movimiento a la meta roja desde fila de aparición azul
+            else if (to.row === RED_GOAL_ROW) {
+                return from.row === BLUE_START_ROW;
+            }
         }
-        // Campo contrario (filas 6-10, índices 5-9): 1 adelante o diagonal adelante
-        else if (from.row >= 5 && from.row <= 9) {
-            const forward = dRow === 1 && dCol === 0;
-            const diagonalLeft = dRow === 1 && dCol === -1;
-            const diagonalRight = dRow === 1 && dCol === 1;
-            return forward || diagonalLeft || diagonalRight;
+        return false; // Si no coincide con ninguna regla del modo Classic
+    }
+
+    // Reglas para modo Marathon (13 filas de juego: 6 propio + 1 seguro + 6 contrario)
+    if (gameSettings.boardSize === 'marathon') {
+        if (color === 'blue') {
+            // Campo propio azul: filas 8-13 (índices 8-13)
+            if (from.row >= 8 && from.row <= 13) {
+                // En la fila de aparición (fila 13): 1 o 2 casillas adelante o 1 o 2 hacia el lado
+                if (from.row === BLUE_START_ROW) {
+                    const oneForward = dRow === -1 && dCol === 0;
+                    const twoForward = dRow === -2 && dCol === 0;
+                    const oneSide = dRow === 0 && Math.abs(dCol) === 1;
+                    const twoSide = dRow === 0 && Math.abs(dCol) === 2;
+                    return oneForward || twoForward || oneSide || twoSide;
+                }
+                // En las otras filas del campo propio: 1 adelante o 1 hacia el lado
+                else {
+                    const oneForward = dRow === -1 && dCol === 0;
+                    const oneSide = dRow === 0 && Math.abs(dCol) === 1;
+                    return oneForward || oneSide;
+                }
+            }
+            // Zona segura (fila 7): 1 adelante o diagonal adelante
+            else if (from.row === 7) {
+                const forward = dRow === -1 && dCol === 0;
+                const diagonalLeft = dRow === -1 && dCol === -1;
+                const diagonalRight = dRow === -1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
+            }
+            // Campo contrario: filas 0-6 (índices 0-6): 1 adelante o diagonal adelante
+            else if (from.row >= 0 && from.row <= 6) {
+                const forward = dRow === -1 && dCol === 0;
+                const diagonalLeft = dRow === -1 && dCol === -1;
+                const diagonalRight = dRow === -1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
+            }
+            // Meta azul (fila 0): no se puede mover desde aquí
+            else if (from.row === BLUE_GOAL_ROW) {
+                return false;
+            }
+            // Permitir movimiento a la meta azul desde fila de aparición roja
+            else if (to.row === BLUE_GOAL_ROW) {
+                return from.row === RED_START_ROW;
+            }
+        } else { // color === 'red'
+            // Campo propio rojo: filas 1-6 (índices 1-6)
+            if (from.row >= 1 && from.row <= 6) {
+                // En la fila de aparición (fila 1): 1 o 2 casillas adelante o 1 o 2 hacia el lado
+                if (from.row === RED_START_ROW) {
+                    const oneForward = dRow === 1 && dCol === 0;
+                    const twoForward = dRow === 2 && dCol === 0;
+                    const oneSide = dRow === 0 && Math.abs(dCol) === 1;
+                    const twoSide = dRow === 0 && Math.abs(dCol) === 2;
+                    return oneForward || twoForward || oneSide || twoSide;
+                }
+                // En las otras filas del campo propio: 1 adelante o 1 hacia el lado
+                else {
+                    const oneForward = dRow === 1 && dCol === 0;
+                    const oneSide = dRow === 0 && Math.abs(dCol) === 1;
+                    return oneForward || oneSide;
+                }
+            }
+            // Zona segura (fila 7): 1 adelante o diagonal adelante
+            else if (from.row === 7) {
+                const forward = dRow === 1 && dCol === 0;
+                const diagonalLeft = dRow === 1 && dCol === -1;
+                const diagonalRight = dRow === 1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
+            }
+            // Campo contrario: filas 8-14 (índices 8-14): 1 adelante o diagonal adelante
+            else if (from.row >= 8 && from.row <= 14) {
+                const forward = dRow === 1 && dCol === 0;
+                const diagonalLeft = dRow === 1 && dCol === -1;
+                const diagonalRight = dRow === 1 && dCol === 1;
+                return forward || diagonalLeft || diagonalRight;
+            }
+            // Meta roja (fila 14): no se puede mover desde aquí
+            else if (from.row === RED_GOAL_ROW) {
+                return false;
+            }
+            // Permitir movimiento a la meta roja desde fila de aparición azul
+            else if (to.row === RED_GOAL_ROW) {
+                return from.row === BLUE_START_ROW;
+            }
         }
-        // Meta roja (fila 11, índice 10): no se puede mover desde aquí
-        else if (from.row === RED_GOAL_ROW) {
-            return false;
-        }
-        // Permitir movimiento a la meta roja desde fila 9 o desde fila de aparición azul (fila 9)
-        else if (to.row === RED_GOAL_ROW) {
-            // Se puede llegar a la meta desde la fila 9 (índice 9) con movimiento hacia adelante
-            // O desde cualquier posición en la fila 9 (fila de aparición azul)
-            return from.row === BLUE_START_ROW;
-        }
+        return false; // Si no coincide con ninguna regla del modo Marathon
     }
 
     return false;
@@ -1600,17 +2807,218 @@ function canEliminate(from, to, color) {
     // Solo se puede eliminar fichas del equipo contrario
     if (toCell.piece.color === color) return false;
     
-    // No se puede eliminar en la zona segura (fila 5, índice 5)
-    if (to.row === 5) return false;
-    
-    // Solo se puede eliminar en campo propio
+    // Reglas específicas para el modo Bala (5 filas de juego: 2 propio + 1 seguro + 2 contrario)
+    if (gameSettings.boardSize === 'bala') {
+        // No se puede eliminar en la zona segura (fila 3, índice 3)
+        if (to.row === 3) return false;
+        
+        // Solo se puede eliminar si el atacante está en su campo propio
     if (color === 'blue') {
-        // Campo propio azul: filas 7-10 (índices 6-9)
-        return to.row >= 6 && to.row <= 9;
+            // Ficha azul solo puede eliminar si está en su campo propio (filas 4-6)
+            return from.row >= 4 && from.row <= 6;
     } else {
-        // Campo propio rojo: filas 2-5 (índices 1-4)
-        return to.row >= 1 && to.row <= 4;
+            // Ficha roja solo puede eliminar si está en su campo propio (filas 0-2)
+            return from.row >= 0 && from.row <= 2;
+        }
+    } else if (gameSettings.boardSize === 'classic') {
+        // Reglas específicas para modo Classic (9 filas de juego: 4 propio + 1 seguro + 4 contrario)
+        // No se puede eliminar en la zona segura (fila 5)
+        if (to.row === 5) return false;
+        
+        // Solo se puede eliminar si el atacante está en su campo propio
+        if (color === 'blue') {
+            // Ficha azul solo puede eliminar si está en su campo propio (filas 6-9)
+            const canEliminate = from.row >= 6 && from.row <= 9;
+            return canEliminate;
+        } else {
+            // Ficha roja solo puede eliminar si está en su campo propio (filas 1-4)
+            const canEliminate = from.row >= 1 && from.row <= 4;
+            return canEliminate;
+        }
+    } else if (gameSettings.boardSize === 'marathon') {
+        // Reglas específicas para modo Marathon (15 filas)
+        // No se puede eliminar en la zona segura (fila 7)
+        if (to.row === 7) return false;
+        
+        // Solo se puede eliminar si el atacante está en su campo propio
+        if (color === 'blue') {
+            // Ficha azul solo puede eliminar si está en su campo propio (filas 8-13)
+            const canEliminate = from.row >= 8 && from.row <= 13;
+            return canEliminate;
+        } else {
+            // Ficha roja solo puede eliminar si está en su campo propio (filas 1-6)
+            const canEliminate = from.row >= 1 && from.row <= 6;
+            return canEliminate;
+        }
     }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
 }
 
 // Función para verificar si hay fichas en posición de meta
@@ -1658,81 +3066,216 @@ function getPossibleMoves(from, color) {
     const moves = [];
     const { row, col } = from;
 
+    // Reglas específicas para el modo Bala (5 filas de juego: 2 propio + 1 seguro + 2 contrario)
+    if (gameSettings.boardSize === 'bala') {
     if (color === 'blue') {
-        // Campo propio (filas 7-10, índices 6-9)
-        if (row >= 6 && row <= 9) {
-            if (row === BLUE_START_ROW) {
-                // Fila de aparición: 1 o 2 casillas adelante o 1 o 2 hacia el lado
+            // En modo Bala: fila de aparición azul (fila 5, índice 5) y siguiente fila (fila 4, índice 4)
+            // Solo movimientos de 1 casilla: recto o hacia los lados
+            if (row === BLUE_START_ROW || row === BLUE_START_ROW - 1) {
+                // Solo movimientos de 1 casilla
+                moves.push({ row: row - 1, col: col }); // Adelante
+                moves.push({ row: row, col: col - 1 }); // Izquierda
+                moves.push({ row: row, col: col + 1 }); // Derecha
+            }
+            // Zona segura (fila 3, índice 3): movimientos recto o diagonal hacia adelante
+            else if (row === 3) {
+                moves.push({ row: row - 1, col: col }); // Adelante
+                moves.push({ row: row - 1, col: col - 1 }); // Diagonal izquierda
+                moves.push({ row: row - 1, col: col + 1 }); // Diagonal derecha
+            }
+            // Campo contrario (filas 0-2, índices 0-2): movimientos normales
+            else if (row >= 0 && row <= 2) {
                 moves.push({ row: row - 1, col: col });
-                moves.push({ row: row - 2, col: col });
-                moves.push({ row: row, col: col - 1 });
-                moves.push({ row: row, col: col + 1 });
-                moves.push({ row: row, col: col - 2 });
-                moves.push({ row: row, col: col + 2 });
-            } else {
-                // Otras filas del campo propio: 1 adelante o 1 hacia el lado
-                moves.push({ row: row - 1, col: col });
-                moves.push({ row: row, col: col - 1 });
-                moves.push({ row: row, col: col + 1 });
+                moves.push({ row: row - 1, col: col - 1 });
+                moves.push({ row: row - 1, col: col + 1 });
+            }
+            // Meta azul (fila 0, índice 0): no se puede mover desde aquí
+            else if (row === BLUE_GOAL_ROW) {
+                // No se puede mover desde la meta
+            }
+        } else { // color === 'red'
+            // En modo Bala: fila de aparición roja (fila 1, índice 1) y siguiente fila (fila 2, índice 2)
+            // Solo movimientos de 1 casilla: recto o hacia los lados
+            if (row === RED_START_ROW || row === RED_START_ROW + 1) {
+                // Solo movimientos de 1 casilla
+                moves.push({ row: row + 1, col: col }); // Adelante
+                moves.push({ row: row, col: col - 1 }); // Izquierda
+                moves.push({ row: row, col: col + 1 }); // Derecha
+            }
+            // Zona segura (fila 3, índice 3): movimientos recto o diagonal hacia adelante
+            else if (row === 3) {
+                moves.push({ row: row + 1, col: col }); // Adelante
+                moves.push({ row: row + 1, col: col - 1 }); // Diagonal izquierda
+                moves.push({ row: row + 1, col: col + 1 }); // Diagonal derecha
+            }
+            // Campo contrario (filas 4-6, índices 4-6): movimientos normales
+            else if (row >= 4 && row <= 6) {
+                moves.push({ row: row + 1, col: col });
+                moves.push({ row: row + 1, col: col - 1 });
+                moves.push({ row: row + 1, col: col + 1 });
+            }
+            // Meta roja (fila 6, índice 6): no se puede mover desde aquí
+            else if (row === RED_GOAL_ROW) {
+                // No se puede mover desde la meta
             }
         }
-        // Zona segura (fila 6, índice 5): 1 adelante o diagonal adelante
-        else if (row === 5) {
-            moves.push({ row: row - 1, col: col });
-            moves.push({ row: row - 1, col: col - 1 });
-            moves.push({ row: row - 1, col: col + 1 });
-        }
-        // Campo contrario (filas 1-5, índices 0-4): 1 adelante o diagonal adelante
-        else if (row >= 0 && row <= 4) {
-            moves.push({ row: row - 1, col: col });
-            moves.push({ row: row - 1, col: col - 1 });
-            moves.push({ row: row - 1, col: col + 1 });
-        }
-        // Meta azul (fila 1, índice 0): no se puede mover desde aquí
-        else if (row === BLUE_GOAL_ROW) {
-            // No se puede mover desde la meta
-        }
-        // Se puede llegar a la meta azul desde la fila 1 (índice 1) - fila de aparición roja
-        if (row === RED_START_ROW) {
-            moves.push({ row: 0, col: 0 }); // Meta azul
-        }
-    } else { // color === 'red'
-        // Campo propio (filas 2-5, índices 1-4)
-        if (row >= 1 && row <= 4) {
+    } else if (gameSettings.boardSize === 'classic') {
+        // Reglas específicas para modo Classic (9 filas de juego: 4 propio + 1 seguro + 4 contrario)
+        if (color === 'blue') {
+            // Campo propio azul: filas 6-9 (4 filas: 6,7,8,9)
+            if (row >= 6 && row <= 9) {
+                if (row === BLUE_START_ROW) {
+                    // Fila de aparición (fila 9): 1 o 2 casillas adelante o 1 o 2 hacia el lado
+                    moves.push({ row: row - 1, col: col });
+                    moves.push({ row: row - 2, col: col });
+                    moves.push({ row: row, col: col - 1 });
+                    moves.push({ row: row, col: col + 1 });
+                    moves.push({ row: row, col: col - 2 });
+                    moves.push({ row: row, col: col + 2 });
+                } else {
+                    // Otras filas del campo propio: 1 adelante o 1 hacia el lado
+                    moves.push({ row: row - 1, col: col });
+                    moves.push({ row: row, col: col - 1 });
+                    moves.push({ row: row, col: col + 1 });
+                }
+            }
+            // Zona segura (fila 5): 1 adelante o diagonal adelante
+            else if (row === 5) {
+                moves.push({ row: row - 1, col: col });
+                moves.push({ row: row - 1, col: col - 1 });
+                moves.push({ row: row - 1, col: col + 1 });
+            }
+            // Campo contrario: filas 1-4 (4 filas: 1,2,3,4): 1 adelante o diagonal adelante
+            else if (row >= 1 && row <= 4) {
+                moves.push({ row: row - 1, col: col });
+                moves.push({ row: row - 1, col: col - 1 });
+                moves.push({ row: row - 1, col: col + 1 });
+            }
+            // Meta azul (fila 0): no se puede mover desde aquí
+            else if (row === BLUE_GOAL_ROW) {
+                // No se puede mover desde la meta
+            }
+            // Se puede llegar a la meta azul desde la fila de aparición roja
             if (row === RED_START_ROW) {
-                // Fila de aparición: 1 o 2 casillas adelante o 1 o 2 hacia el lado
+                moves.push({ row: 0, col: 0 }); // Meta azul
+            }
+        } else { // color === 'red'
+            // Campo propio rojo: filas 1-6 (índices 1-6)
+            if (row >= 1 && row <= 6) {
+                if (row === RED_START_ROW) {
+                    // Fila de aparición (fila 1): 1 o 2 casillas adelante o 1 o 2 hacia el lado
+                    moves.push({ row: row + 1, col: col });
+                    moves.push({ row: row + 2, col: col });
+                    moves.push({ row: row, col: col - 1 });
+                    moves.push({ row: row, col: col + 1 });
+                    moves.push({ row: row, col: col - 2 });
+                    moves.push({ row: row, col: col + 2 });
+                } else {
+                    // Otras filas del campo propio: 1 adelante o 1 hacia el lado
+                    moves.push({ row: row + 1, col: col });
+                    moves.push({ row: row, col: col - 1 });
+                    moves.push({ row: row, col: col + 1 });
+                }
+            }
+            // Zona segura (fila 5): 1 adelante o diagonal adelante
+            else if (row === 5) {
                 moves.push({ row: row + 1, col: col });
-                moves.push({ row: row + 2, col: col });
-                moves.push({ row: row, col: col - 1 });
-                moves.push({ row: row, col: col + 1 });
-                moves.push({ row: row, col: col - 2 });
-                moves.push({ row: row, col: col + 2 });
-            } else {
-                // Otras filas del campo propio: 1 adelante o 1 hacia el lado
+                moves.push({ row: row + 1, col: col - 1 });
+                moves.push({ row: row + 1, col: col + 1 });
+            }
+            // Campo contrario: filas 6-10 (índices 6-10): 1 adelante o diagonal adelante
+            else if (row >= 6 && row <= 10) {
                 moves.push({ row: row + 1, col: col });
-                moves.push({ row: row, col: col - 1 });
-                moves.push({ row: row, col: col + 1 });
+                moves.push({ row: row + 1, col: col - 1 });
+                moves.push({ row: row + 1, col: col + 1 });
+            }
+            // Meta roja (fila 10): no se puede mover desde aquí
+            else if (row === RED_GOAL_ROW) {
+                // No se puede mover desde la meta
+            }
+            // Se puede llegar a la meta roja desde la fila de aparición azul
+            if (row === BLUE_START_ROW) {
+                moves.push({ row: 10, col: 0 }); // Meta roja
             }
         }
-        // Zona segura (fila 6, índice 5): 1 adelante o diagonal adelante
-        else if (row === 5) {
-            moves.push({ row: row + 1, col: col });
-            moves.push({ row: row + 1, col: col - 1 });
-            moves.push({ row: row + 1, col: col + 1 });
-        }
-        // Campo contrario (filas 6-10, índices 5-9): 1 adelante o diagonal adelante
-        else if (row >= 5 && row <= 9) {
-            moves.push({ row: row + 1, col: col });
-            moves.push({ row: row + 1, col: col - 1 });
-            moves.push({ row: row + 1, col: col + 1 });
-        }
-        // Meta roja (fila 11, índice 10): no se puede mover desde aquí
-        else if (row === RED_GOAL_ROW) {
-            // No se puede mover desde la meta
-        }
-        // Se puede llegar a la meta roja desde la fila 9 (índice 9) - fila de aparición azul
-        if (row === BLUE_START_ROW) {
-            moves.push({ row: 10, col: 0 }); // Meta roja
+    } else if (gameSettings.boardSize === 'marathon') {
+        // Reglas específicas para modo Marathon (15 filas)
+        if (color === 'blue') {
+            // Campo propio azul: filas 8-13 (índices 8-13)
+            if (row >= 8 && row <= 13) {
+                if (row === BLUE_START_ROW) {
+                    // Fila de aparición (fila 13): 1 o 2 casillas adelante o 1 o 2 hacia el lado
+                    moves.push({ row: row - 1, col: col });
+                    moves.push({ row: row - 2, col: col });
+                    moves.push({ row: row, col: col - 1 });
+                    moves.push({ row: row, col: col + 1 });
+                    moves.push({ row: row, col: col - 2 });
+                    moves.push({ row: row, col: col + 2 });
+                } else {
+                    // Otras filas del campo propio: 1 adelante o 1 hacia el lado
+                    moves.push({ row: row - 1, col: col });
+                    moves.push({ row: row, col: col - 1 });
+                    moves.push({ row: row, col: col + 1 });
+                }
+            }
+            // Zona segura (fila 7): 1 adelante o diagonal adelante
+            else if (row === 7) {
+                moves.push({ row: row - 1, col: col });
+                moves.push({ row: row - 1, col: col - 1 });
+                moves.push({ row: row - 1, col: col + 1 });
+            }
+            // Campo contrario: filas 0-6 (índices 0-6): 1 adelante o diagonal adelante
+            else if (row >= 0 && row <= 6) {
+                moves.push({ row: row - 1, col: col });
+                moves.push({ row: row - 1, col: col - 1 });
+                moves.push({ row: row - 1, col: col + 1 });
+            }
+            // Meta azul (fila 0): no se puede mover desde aquí
+            else if (row === BLUE_GOAL_ROW) {
+                // No se puede mover desde la meta
+            }
+            // Se puede llegar a la meta azul desde la fila de aparición roja
+            if (row === RED_START_ROW) {
+                moves.push({ row: 0, col: 0 }); // Meta azul
+            }
+        } else { // color === 'red'
+            // Campo propio rojo: filas 1-6 (índices 1-6)
+            if (row >= 1 && row <= 6) {
+                if (row === RED_START_ROW) {
+                    // Fila de aparición (fila 1): 1 o 2 casillas adelante o 1 o 2 hacia el lado
+                    moves.push({ row: row + 1, col: col });
+                    moves.push({ row: row + 2, col: col });
+                    moves.push({ row: row, col: col - 1 });
+                    moves.push({ row: row, col: col + 1 });
+                    moves.push({ row: row, col: col - 2 });
+                    moves.push({ row: row, col: col + 2 });
+                } else {
+                    // Otras filas del campo propio: 1 adelante o 1 hacia el lado
+                    moves.push({ row: row + 1, col: col });
+                    moves.push({ row: row, col: col - 1 });
+                    moves.push({ row: row, col: col + 1 });
+                }
+            }
+            // Zona segura (fila 7): 1 adelante o diagonal adelante
+            else if (row === 7) {
+                moves.push({ row: row + 1, col: col });
+                moves.push({ row: row + 1, col: col - 1 });
+                moves.push({ row: row + 1, col: col + 1 });
+            }
+            // Campo contrario: filas 8-14 (índices 8-14): 1 adelante o diagonal adelante
+            else if (row >= 8 && row <= 14) {
+                moves.push({ row: row + 1, col: col });
+                moves.push({ row: row + 1, col: col - 1 });
+                moves.push({ row: row + 1, col: col + 1 });
+            }
+            // Meta roja (fila 14): no se puede mover desde aquí
+            else if (row === RED_GOAL_ROW) {
+                // No se puede mover desde la meta
+            }
+            // Se puede llegar a la meta roja desde la fila de aparición azul
+            if (row === BLUE_START_ROW) {
+                moves.push({ row: 14, col: 0 }); // Meta roja
+            }
         }
     }
 
@@ -1840,12 +3383,15 @@ const cpuAI = {
             pieceData.moves.forEach(move => {
                 const targetCell = gameState.board[move.row][move.col];
                 if (targetCell.piece && targetCell.piece.color === 'blue') {
+                    // Verificar que la eliminación sea válida según las reglas
+                    if (canEliminate(pieceData.from, move, pieceData.piece.color)) {
                     eliminationMoves.push({
                         from: pieceData.from,
                         to: move,
                         piece: pieceData.piece,
                         type: 'elimination'
                     });
+                    }
                 }
             });
         });
@@ -2646,7 +4192,7 @@ const cpuAI = {
         // Verificar si una ficha puede eliminar a otra desde su posición
         const possibleMoves = getPossibleMoves(from, color);
         return possibleMoves.some(move => 
-            move.row === target.row && move.col === target.col
+            move.row === target.row && move.col === target.col && canEliminate(from, target, color)
         );
     },
     
@@ -3040,6 +4586,174 @@ const cpuAI = {
         scoredMoves.sort((a, b) => b.score - a.score);
         return scoredMoves[0].move;
     }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
 };
 
 // Función para limpiar selecciones de fichas que ya no existen
@@ -3060,6 +4774,174 @@ function clearInvalidSelection() {
             createBoardHTML();
         }
     }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
 }
 
 // Función para limpiar fichas en estado inconsistente (eliminando pero no eliminadas)
@@ -3091,6 +4973,174 @@ function cleanupInconsistentPieces() {
         createBoardHTML();
         updateGameInfo();
     }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
 }
 
 // Ejecutar limpieza automática cada 2 segundos
@@ -3286,6 +5336,174 @@ function cpuMove() {
     }
 }
 
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
 // Función para formatear el tiempo
 function formatTime(milliseconds) {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -3304,6 +5522,174 @@ function updateGameTime() {
             gameTimeElement.textContent = formatTime(elapsedTime);
         }
     }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
 }
 
 function updateGameInfo() {
@@ -3358,6 +5744,19 @@ function updateGameInfo() {
         playerNameElement.textContent = gameSettings.playerName;
     }
     
+    // Actualizar información del tablero
+    const boardSizeDisplay = document.getElementById('boardSizeDisplay');
+    const boardPointsDisplay = document.getElementById('boardPointsDisplay');
+    
+    if (boardSizeDisplay) {
+        // Mostrar tamaño del área de juego (sin contar filas de meta)
+        boardSizeDisplay.textContent = `${BOARD_ROWS - 2}x${BOARD_COLS}`;
+    }
+    
+    if (boardPointsDisplay) {
+        boardPointsDisplay.textContent = `${POINTS_TO_WIN} pts`;
+    }
+    
     // Verificar condiciones de fin de partida
     checkGameEnd();
 }
@@ -3388,6 +5787,174 @@ function updateDifficultyIndicator() {
         default:
             textElement.textContent = 'Principiante';
     }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
 }
 
 // Función para mostrar texto de victoria/derrota
@@ -3433,6 +6000,174 @@ function hideVictoryText() {
     if (overlay) {
         overlay.remove();
     }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
 }
 
 // Función para verificar si hay animaciones de eliminación en curso
@@ -3503,24 +6238,24 @@ function endGame(winner, message) {
     // Mostrar texto de victoria/derrota con delay si hay animaciones
     setTimeout(() => {
         showVictoryText(winner, message);
-        
-        // Reproducir sonido apropiado según el ganador
-        if (winner === 'blue') {
+    
+    // Reproducir sonido apropiado según el ganador
+    if (winner === 'blue') {
             // Jugador gana - delay para que coincida con la animación del texto
-            setTimeout(() => {
-                audioManager.playVictory();
+        setTimeout(() => {
+            audioManager.playVictory();
             }, 600);
-        } else {
+    } else {
             // CPU gana - delay pequeño para sincronización
             setTimeout(() => {
-                audioManager.playDefeat();
+        audioManager.playDefeat();
             }, 300);
-        }
-        
-        // Mostrar modal de resumen después de que termine el sonido
-        setTimeout(() => {
+    }
+    
+    // Mostrar modal de resumen después de que termine el sonido
+    setTimeout(() => {
             hideVictoryText(); // Ocultar el texto antes de mostrar el resumen
-            showGameSummary(winner, message);
+        showGameSummary(winner, message);
         }, winner === 'blue' ? 2000 : 1500);
         
     }, animationDelay);
@@ -3715,6 +6450,174 @@ function createFinalBoard() {
     }
 }
 
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
 // Función para empezar una nueva partida
 function startNewGame() {
     audioManager.playButtonClick();
@@ -3751,25 +6654,44 @@ function applyTheme() {
     if (gameSettings.theme === 'light') {
         gameContainer.classList.add('light-theme');
         gameContainer.classList.remove('dark-theme');
+        document.body.classList.remove('dark-theme');
     } else {
         gameContainer.classList.remove('light-theme');
         gameContainer.classList.add('dark-theme');
+        document.body.classList.add('dark-theme');
     }
+    
+    // Actualizar imágenes de movimientos si estamos en esa pantalla
+    updateMovementImagesTheme();
 }
 
 
 // Elementos del DOM
 const startScreen = document.getElementById('startScreen');
+const tutorialScreen = document.getElementById('tutorialScreen');
 const optionsScreen = document.getElementById('optionsScreen');
 const gameScreen = document.getElementById('gameScreen');
 const difficultyModal = document.getElementById('difficultyModal');
 
 const playBtn = document.getElementById('playBtn');
+const tutorialBtn = document.getElementById('tutorialBtn');
 const optionsBtn = document.getElementById('optionsBtn');
 const exitBtn = document.getElementById('exitBtn');
 const backBtn = document.getElementById('backBtn');
 const menuBtn = document.getElementById('menuBtn');
 const cancelDifficulty = document.getElementById('cancelDifficulty');
+
+// Elementos del tutorial
+const interactiveTutorial = document.getElementById('interactiveTutorial');
+const guideTutorial = document.getElementById('guideTutorial');
+const backFromTutorial = document.getElementById('backFromTutorial');
+
+// Elementos del tutorial interactivo
+const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+const tutorialBoard = document.getElementById('tutorialBoard');
+const navPrev = document.getElementById('navPrev');
+const navNext = document.getElementById('navNext');
+const backFromInteractiveTutorial = document.getElementById('backFromInteractiveTutorial');
 
 const themeToggle = document.querySelector('.theme-toggle');
 const themeOptions = document.querySelectorAll('.theme-option');
@@ -3790,6 +6712,8 @@ function playSound(soundType) {
 function showScreen(screenToShow) {
     // Ocultar todas las pantallas
     startScreen.classList.add('hidden');
+    tutorialScreen.classList.add('hidden');
+    interactiveTutorialScreen.classList.add('hidden');
     optionsScreen.classList.add('hidden');
     gameScreen.classList.add('hidden');
     
@@ -3801,6 +6725,7 @@ function showScreen(screenToShow) {
 }
 
 function startGame() {
+    clearAllFormationModals();
     console.log('Mostrando modal de dificultad');
     showDifficultyModal();
 }
@@ -3814,6 +6739,18 @@ function showDifficultyModal() {
     
     // Configurar opciones de dificultad
     setupDifficultyOptions();
+    
+    // Mostrar texto por defecto (sin selección visual)
+    showDefaultPreview();
+    
+    // Actualizar información de la partida
+    updateGameInfoPreview();
+    
+    // Aplicar efectos de dificultad
+    applyDifficultyToPreviewBoard();
+    
+    // Verificar si se puede habilitar el botón de empezar
+    checkCanStartGame();
 }
 
 function setupDifficultyOptions() {
@@ -3823,27 +6760,57 @@ function setupDifficultyOptions() {
     // Remover selección previa de tableros
     boardOptions.forEach(option => {
         option.classList.remove('selected');
+        // Remover event listeners anteriores si existen
+        option.replaceWith(option.cloneNode(true));
     });
     
-    // Seleccionar el tablero actual
-    const currentBoardOption = document.querySelector(`[data-size="${gameSettings.boardSize}"]`);
-    if (currentBoardOption) {
-        currentBoardOption.classList.add('selected');
-    }
+    // Obtener referencias actualizadas después de clonar
+    const freshBoardOptions = document.querySelectorAll('.board-option');
+    
+    // No seleccionar nada por defecto
+    gameSettings.boardSize = '';
     
     // Agregar event listeners para selección de tablero
-    boardOptions.forEach(option => {
+    freshBoardOptions.forEach(option => {
         option.addEventListener('click', function() {
             audioManager.playButtonClick();
             
-            // Remover selección de todas las opciones de tablero
-            boardOptions.forEach(opt => opt.classList.remove('selected'));
+            // Verificar si ya está seleccionada
+            if (this.classList.contains('selected')) {
+                // Deseleccionar
+                this.classList.remove('selected');
+                gameSettings.boardSize = '';
+                
+                // Mostrar texto por defecto
+                showDefaultPreview();
+            } else {
+                // Remover selección de todas las opciones de tablero
+                freshBoardOptions.forEach(opt => opt.classList.remove('selected'));
+                
+                // Seleccionar la opción clickeada
+                this.classList.add('selected');
+                
+                // Guardar el tamaño de tablero seleccionado
+                gameSettings.boardSize = this.dataset.size;
+                
+                // Generar el tablero de previsualización según el modo seleccionado
+                if (this.dataset.size === 'bala') {
+                    createIndependentBalaBoard();
+                } else if (this.dataset.size === 'classic') {
+                    createIndependentClassicBoard();
+                } else if (this.dataset.size === 'marathon') {
+                    createIndependentMarathonBoard();
+                }
+            }
             
-            // Seleccionar la opción clickeada
-            this.classList.add('selected');
+            // Actualizar información de la partida
+            updateGameInfoPreview();
             
-            // Guardar el tamaño de tablero seleccionado
-            gameSettings.boardSize = this.dataset.size;
+            // Aplicar efectos de dificultad
+            applyDifficultyToPreviewBoard();
+            
+            // Verificar si se puede habilitar el botón de empezar
+            checkCanStartGame();
         });
     });
     
@@ -3853,30 +6820,42 @@ function setupDifficultyOptions() {
     // Remover selección previa de dificultad
     difficultyOptions.forEach(option => {
         option.classList.remove('selected');
+        // Remover event listeners anteriores si existen
+        option.replaceWith(option.cloneNode(true));
     });
     
-    // Seleccionar la dificultad actual
-    const currentOption = document.querySelector(`[data-level="${gameSettings.cpuDifficulty}"]`);
-    if (currentOption) {
-        currentOption.classList.add('selected');
-    }
+    // Obtener referencias actualizadas después de clonar
+    const freshDifficultyOptions = document.querySelectorAll('.difficulty-option');
+    
+    // No seleccionar nada por defecto
+    gameSettings.cpuDifficulty = '';
     
     // Agregar event listeners para dificultad
-    difficultyOptions.forEach(option => {
+    freshDifficultyOptions.forEach(option => {
         option.addEventListener('click', function() {
+            audioManager.playButtonClick();
+            
+            // Verificar si ya está seleccionada
+            if (this.classList.contains('selected')) {
+                // Deseleccionar
+                this.classList.remove('selected');
+                gameSettings.cpuDifficulty = '';
+            } else {
             // Remover selección de todas las opciones
-            difficultyOptions.forEach(opt => opt.classList.remove('selected'));
+                freshDifficultyOptions.forEach(opt => opt.classList.remove('selected'));
             
             // Seleccionar la opción clickeada
             this.classList.add('selected');
             
             // Guardar la dificultad seleccionada
             gameSettings.cpuDifficulty = this.dataset.level;
+            }
             
-            // Iniciar el juego con la configuración seleccionada
-            setTimeout(() => {
-                initializeGame();
-            }, 300);
+            // Aplicar efectos de dificultad
+            applyDifficultyToPreviewBoard();
+            
+            // Verificar si se puede habilitar el botón de empezar
+            checkCanStartGame();
         });
     });
 }
@@ -3887,6 +6866,9 @@ function hideDifficultyModal() {
 
 function initializeGame() {
     console.log('Iniciando juego con configuración:', gameSettings);
+    
+    // Limpiar modales de formaciones
+    clearAllFormationModals();
     
     // Ocultar modal de dificultad
     hideDifficultyModal();
@@ -3949,16 +6931,942 @@ function initializeGame() {
 }
 
 function showOptions() {
+    clearAllFormationModals();
     showScreen(optionsScreen);
     playSound('menu');
 }
 
 function backToMenu() {
+    clearAllFormationModals();
+    showScreen(startScreen);
+    playSound('back');
+}
+
+// Funciones del tutorial
+function showTutorial() {
+    clearAllFormationModals();
+    showScreen(tutorialScreen);
+    playSound('menu');
+}
+
+function startInteractiveTutorial() {
+    clearAllFormationModals();
+    showScreen(interactiveTutorialScreen);
+    initializeInteractiveTutorial();
+    playSound('menu');
+}
+
+// Variables del tutorial interactivo
+let currentTutorialStep = 1;
+    const totalTutorialSteps = 4;
+
+function initializeInteractiveTutorial() {
+    currentTutorialStep = 1;
+    
+    // Ocultar el tablero inmediatamente
+    const tutorialBoard = document.getElementById('tutorialBoard');
+    if (tutorialBoard) {
+        tutorialBoard.style.display = 'none';
+    }
+    
+    // Ejecutar inmediatamente sin delay
+    updateTutorialStep();
+}
+
+function createTutorialBoard() {
+    tutorialBoard.innerHTML = '';
+    
+    // Configuración del tablero Clásico (basado en createIndependentClassicBoard)
+    const rows = 11;
+    const cols = 9;
+    const cellSize = 35; // Tamaño más pequeño para el tutorial
+    
+    // Configurar el contenedor del tablero
+    tutorialBoard.className = 'board classic-preview';
+    tutorialBoard.style.display = 'flex';
+    tutorialBoard.style.flexDirection = 'column';
+    tutorialBoard.style.gap = '0';
+    tutorialBoard.style.background = 'var(--board-bg)';
+    tutorialBoard.style.padding = '10px';
+    tutorialBoard.style.borderRadius = '8px';
+    tutorialBoard.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.2)';
+    tutorialBoard.style.border = '2px solid var(--board-border)';
+    tutorialBoard.style.position = 'relative';
+    tutorialBoard.style.transform = 'scale(0.8)';
+    tutorialBoard.style.transformOrigin = 'center';
+    tutorialBoard.style.pointerEvents = 'none';
+    
+    // Calcular dimensiones de las filas de meta
+    const goalRowWidth = cellSize * cols;
+    const goalRowHeight = 25;
+    
+    // Crear las filas del tablero
+    for (let row = 0; row < rows; row++) {
+        const boardRow = document.createElement('div');
+        boardRow.className = 'board-row';
+        boardRow.style.display = 'flex';
+        boardRow.style.gap = '0';
+        
+        // Determinar el tipo de fila
+        let rowType = 'normal';
+        if (row === 0) {
+            rowType = 'blue-goal';
+        } else if (row === rows - 1) {
+            rowType = 'red-goal';
+        }
+        
+        if (rowType === 'blue-goal' || rowType === 'red-goal') {
+            // Crear fila de meta
+            const goalCell = document.createElement('div');
+            goalCell.className = `board-cell ${rowType} goal-row`;
+            goalCell.style.width = `${goalRowWidth}px`;
+            goalCell.style.height = `${goalRowHeight}px`;
+            goalCell.style.display = 'flex';
+            goalCell.style.alignItems = 'center';
+            goalCell.style.justifyContent = 'center';
+            goalCell.style.border = 'none';
+            goalCell.style.cursor = 'default';
+            goalCell.style.pointerEvents = 'none';
+            
+            // Aplicar estilos de meta
+            if (rowType === 'blue-goal') {
+                goalCell.style.backgroundImage = `
+                    repeating-conic-gradient(
+                        var(--goal-blue-primary) 0deg 90deg,
+                        var(--goal-blue-secondary) 90deg 180deg,
+                        var(--goal-blue-primary) 180deg 270deg,
+                        var(--goal-blue-secondary) 270deg 360deg
+                    )
+                `;
+                goalCell.style.backgroundSize = '10px 10px';
+            } else {
+                goalCell.style.backgroundImage = `
+                    repeating-conic-gradient(
+                        var(--goal-red-primary) 0deg 90deg,
+                        var(--goal-red-secondary) 90deg 180deg,
+                        var(--goal-red-primary) 180deg 270deg,
+                        var(--goal-red-secondary) 270deg 360deg
+                    )
+                `;
+                goalCell.style.backgroundSize = '10px 10px';
+            }
+            
+            boardRow.appendChild(goalCell);
+        } else {
+            // Crear filas normales
+            for (let col = 0; col < cols; col++) {
+                const cell = document.createElement('div');
+                cell.className = 'board-cell';
+                cell.style.width = `${cellSize}px`;
+                cell.style.height = `${cellSize}px`;
+                cell.style.display = 'flex';
+                cell.style.alignItems = 'center';
+                cell.style.justifyContent = 'center';
+                cell.style.cursor = 'default';
+                cell.style.pointerEvents = 'none';
+                cell.style.borderRight = '1px solid var(--board-grid-line)';
+                cell.style.borderBottom = '1px solid var(--board-grid-line)';
+                
+                // Determinar el tipo de celda
+                let cellType = 'neutral';
+                if (row === 1) {
+                    cellType = 'red-start';
+                } else if (row === rows - 2) {
+                    cellType = 'blue-start';
+                } else if (row === Math.floor(rows / 2)) {
+                    cellType = 'safe-zone';
+                } else if (row < Math.floor(rows / 2)) {
+                    cellType = 'neutral';
+                } else {
+                    cellType = 'neutral2';
+                }
+                
+                // Aplicar estilos según el tipo de celda
+                switch (cellType) {
+                    case 'red-start':
+                        cell.style.backgroundColor = 'var(--cell-red-start-bg)';
+                        cell.style.border = '2px solid var(--cell-red-start-border)';
+                        break;
+                    case 'blue-start':
+                        cell.style.backgroundColor = 'var(--cell-blue-start-bg)';
+                        cell.style.border = '2px solid var(--cell-blue-start-border)';
+                        break;
+                    case 'safe-zone':
+                        cell.style.backgroundColor = 'var(--cell-safe-bg)';
+                        cell.style.border = '2px solid var(--cell-safe-border)';
+                        break;
+                    default:
+                        cell.style.backgroundColor = 'var(--cell-neutral-bg)';
+                        cell.style.border = '1px solid var(--cell-neutral-border)';
+                }
+                
+                // Agregar fichas de ejemplo
+                if (row === 1 && col >= 2 && col <= 6) {
+                    const pieceElement = document.createElement('div');
+                    pieceElement.className = 'piece red';
+                    pieceElement.style.width = '20px';
+                    pieceElement.style.height = '20px';
+                    pieceElement.style.borderRadius = '50%';
+                    pieceElement.style.backgroundColor = 'var(--piece-red-color)';
+                    pieceElement.style.border = '2px solid var(--piece-red-border)';
+                    cell.appendChild(pieceElement);
+                } else if (row === rows - 2 && col >= 2 && col <= 6) {
+                    const pieceElement = document.createElement('div');
+                    pieceElement.className = 'piece blue';
+                    pieceElement.style.width = '20px';
+                    pieceElement.style.height = '20px';
+                    pieceElement.style.borderRadius = '50%';
+                    pieceElement.style.backgroundColor = 'var(--piece-blue-color)';
+                    pieceElement.style.border = '2px solid var(--piece-blue-border)';
+                    cell.appendChild(pieceElement);
+                }
+                
+                // Remover bordes de los últimos elementos
+                if (col === cols - 1) {
+                    cell.style.borderRight = 'none';
+                }
+                
+                boardRow.appendChild(cell);
+            }
+        }
+        
+        tutorialBoard.appendChild(boardRow);
+    }
+    
+    // Remover el borde inferior de la última fila
+    const lastRow = tutorialBoard.lastElementChild;
+    if (lastRow && lastRow.lastElementChild) {
+        lastRow.lastElementChild.style.borderBottom = 'none';
+    }
+}
+
+function updateTutorialStep() {
+    // Ocultar todos los pasos
+    document.querySelectorAll('.explanation-step').forEach(step => {
+        step.classList.remove('active');
+    });
+    
+    // Mostrar el paso actual
+    const currentStepElement = document.getElementById(`step${currentTutorialStep}`);
+    if (currentStepElement) {
+        currentStepElement.classList.add('active');
+    }
+    
+    // Añadir/quitar clase para centrar texto
+    const tutorialContent = document.querySelector('.tutorial-content');
+    const tutorialTitle = document.getElementById('tutorialTitle');
+    const tutorialSubtitle = document.getElementById('tutorialSubtitle');
+    
+    if (currentTutorialStep === 1) {
+        tutorialContent.classList.add('text-only');
+        tutorialContent.classList.remove('movements-only');
+        tutorialTitle.textContent = 'OBJETIVO';
+        tutorialTitle.removeAttribute('data-step');
+        tutorialSubtitle.style.display = 'none';
+    } else if (currentTutorialStep === 2) {
+        tutorialContent.classList.remove('text-only', 'movements-only');
+        tutorialTitle.textContent = 'TABLERO';
+        tutorialTitle.setAttribute('data-step', '2');
+        tutorialSubtitle.style.display = 'none';
+    } else if (currentTutorialStep === 3) {
+        tutorialContent.classList.remove('text-only');
+        tutorialContent.classList.add('movements-only');
+        tutorialTitle.textContent = 'MOVIMIENTOS';
+        tutorialTitle.setAttribute('data-step', '3');
+        tutorialSubtitle.style.display = 'none';
+    } else if (currentTutorialStep === 4) {
+        tutorialContent.classList.remove('text-only');
+        tutorialContent.classList.add('movements-only');
+        tutorialTitle.textContent = 'PUNTUACIÓN';
+        tutorialTitle.setAttribute('data-step', '4');
+        tutorialSubtitle.style.display = 'none';
+    } else {
+        tutorialContent.classList.remove('text-only', 'movements-only');
+        tutorialTitle.textContent = 'TUTORIAL INTERACTIVO';
+        tutorialTitle.removeAttribute('data-step');
+        tutorialSubtitle.style.display = 'block';
+    }
+    
+    // Mostrar u ocultar el tablero según el paso
+    if (currentTutorialStep === 1) {
+        // En el paso 1 (resumen), ocultar el tablero
+        tutorialBoard.style.display = 'none';
+    } else if (currentTutorialStep === 2) {
+        // En el paso 2 (tablero), mostrar el tablero clásico en el contenedor del tablero
+        tutorialBoard.style.display = 'block';
+        createTutorialClassicBoard();
+        // Inicializar pestañas después de crear el tablero
+        setTimeout(() => {
+            initializeTutorialTabs();
+        }, 100);
+    } else if (currentTutorialStep === 3) {
+        // En el paso 3 (movimientos), ocultar el tablero y inicializar pestañas
+        tutorialBoard.style.display = 'none';
+        setTimeout(() => {
+            initializeMovementTabs();
+        }, 100);
+    } else if (currentTutorialStep === 4) {
+        // En el paso 4 (puntuación), ocultar el tablero e inicializar pestañas de puntuación
+        tutorialBoard.style.display = 'none';
+        setTimeout(() => {
+            initializePuntuacionTabs();
+        }, 100);
+    } else {
+        // En los demás pasos, mostrar el tablero interactivo
+        tutorialBoard.style.display = 'block';
+            createTutorialBoard();
+    }
+    
+    // Actualizar botones de navegación (comentado - se maneja en updateNavigationButtons)
+    // prevStep.disabled = currentTutorialStep === 1;
+    
+    // if (currentTutorialStep === totalTutorialSteps) {
+    //     nextStep.innerHTML = '<span class="btn-text">FINALIZAR</span><div class="btn-glow"></div>';
+    // } else {
+    //     nextStep.innerHTML = '<span class="btn-text">SIGUIENTE</span><div class="btn-glow"></div>';
+    // }
+    
+    // Aplicar efectos visuales al tablero según el paso (solo si el tablero está visible)
+    if (currentTutorialStep > 2) {
+        highlightTutorialBoard();
+    }
+    
+    // Actualizar navegación
+    updateNavigationButtons();
+}
+
+// Función para actualizar los botones de navegación
+function updateNavigationButtons() {
+    const navPrev = document.getElementById('navPrev');
+    const navNext = document.getElementById('navNext');
+    const stepButtons = document.querySelectorAll('.tutorial-step-btn');
+    
+    if (stepButtons.length === 0) {
+        return;
+    }
+    
+    // Actualizar estado de flechas
+    navPrev.disabled = currentTutorialStep === 1;
+    navNext.disabled = currentTutorialStep === totalTutorialSteps;
+    
+    // Actualizar botones de pasos
+    stepButtons.forEach(button => {
+        const step = parseInt(button.dataset.step);
+        const icon = button.querySelector('.step-icon');
+        
+        if (step === currentTutorialStep) {
+            button.classList.add('active');
+            // Forzar el estilo directamente con JavaScript
+            if (icon) {
+                icon.style.filter = 'brightness(2.2) saturate(2.0) hue-rotate(60deg)';
+                icon.style.transform = '';
+            }
+        } else {
+            button.classList.remove('active');
+            // Resetear el estilo
+            if (icon) {
+                icon.style.filter = '';
+                icon.style.transform = '';
+            }
+        }
+    });
+}
+
+function highlightTutorialBoard() {
+    // Remover todas las clases de highlight
+    document.querySelectorAll('.board-cell').forEach(cell => {
+        cell.style.boxShadow = '';
+        cell.style.border = '';
+    });
+    
+    // Aplicar highlight según el paso actual
+    const cells = document.querySelectorAll('.board-cell');
+    
+    switch (currentTutorialStep) {
+        case 1: // Objetivo
+            // Highlight metas
+            cells.forEach(cell => {
+                const row = parseInt(cell.dataset.row);
+                if (row === BLUE_GOAL_ROW || row === RED_GOAL_ROW) {
+                    cell.style.boxShadow = '0 0 10px #00d4ff';
+                    cell.style.border = '2px solid #00d4ff';
+                }
+            });
+            break;
+        case 2: // Campo propio
+            cells.forEach(cell => {
+                const row = parseInt(cell.dataset.row);
+                const cellType = getCellType(row);
+                if (cellType === 'START') {
+                    cell.style.boxShadow = '0 0 10px #28a745';
+                    cell.style.border = '2px solid #28a745';
+                }
+            });
+            break;
+        case 3: // Zona segura
+            cells.forEach(cell => {
+                const row = parseInt(cell.dataset.row);
+                const cellType = getCellType(row);
+                if (cellType === 'SAFE') {
+                    cell.style.boxShadow = '0 0 10px #ffd700';
+                    cell.style.border = '2px solid #ffd700';
+                }
+            });
+            break;
+        case 4: // Campo contrario
+            cells.forEach(cell => {
+                const row = parseInt(cell.dataset.row);
+                const cellType = getCellType(row);
+                if (cellType !== 'BLUE_GOAL' && cellType !== 'RED_GOAL' && cellType !== 'SAFE' && cellType !== 'START') {
+                    cell.style.boxShadow = '0 0 10px #dc3545';
+                    cell.style.border = '2px solid #dc3545';
+                }
+            });
+            break;
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+function nextTutorialStep() {
+    if (currentTutorialStep < totalTutorialSteps) {
+        currentTutorialStep++;
+        updateTutorialStep();
+        playSound('menu');
+    } else {
+        // Finalizar tutorial
+        backFromInteractiveTutorialMenu();
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+function prevTutorialStep() {
+    if (currentTutorialStep > 1) {
+        currentTutorialStep--;
+        updateTutorialStep();
+        playSound('menu');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+function backFromInteractiveTutorialMenu() {
+    showScreen(tutorialScreen);
+    playSound('back');
+}
+
+function startGuideTutorial() {
+    // TODO: Implementar guía de tutorial
+    console.log('Iniciando guía de tutorial');
+    playSound('menu');
+}
+
+function backFromTutorialMenu() {
     showScreen(startScreen);
     playSound('back');
 }
 
 function exitGame() {
+    clearAllFormationModals();
     playSound('exit');
     
     // Crear efecto de fade out
@@ -3991,6 +7899,174 @@ function updateTheme() {
     }
 }
 
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
 function updateThemeToggle() {
     themeOptions.forEach(option => {
         option.classList.remove('active');
@@ -4005,6 +8081,174 @@ function updateThemeToggle() {
     }
 }
 
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
 function updateSoundEffects() {
     gameSettings.soundEffects = soundEffectsCheckbox.checked;
     console.log('Efectos de sonido:', gameSettings.soundEffects ? 'activados' : 'desactivados');
@@ -4016,6 +8260,10 @@ document.addEventListener('DOMContentLoaded', function() {
     playBtn.addEventListener('click', function() {
         audioManager.playButtonClick();
         startGame();
+    });
+    tutorialBtn.addEventListener('click', function() {
+        audioManager.playButtonClick();
+        showTutorial();
     });
     optionsBtn.addEventListener('click', function() {
         audioManager.playButtonClick();
@@ -4034,9 +8282,76 @@ document.addEventListener('DOMContentLoaded', function() {
         hideDifficultyModal();
         startScreen.classList.remove('hidden');
     });
+    
+    // Botón para empezar partida desde el modal
+    const startGameModalBtn = document.getElementById('startGame');
+    if (startGameModalBtn) {
+        startGameModalBtn.addEventListener('click', function() {
+            if (!this.disabled) {
+                audioManager.playButtonClick();
+                hideDifficultyModal();
+                initializeGame();
+            }
+        });
+    }
+    
     menuBtn.addEventListener('click', function() {
         audioManager.playButtonClick();
         backToMenu();
+    });
+    
+    // Event listeners del tutorial
+    interactiveTutorial.addEventListener('click', function() {
+        audioManager.playButtonClick();
+        startInteractiveTutorial();
+    });
+    guideTutorial.addEventListener('click', function() {
+        audioManager.playButtonClick();
+        startGuideTutorial();
+    });
+    backFromTutorial.addEventListener('click', function() {
+        console.log('Botón CANCELAR clickeado');
+        audioManager.playButtonClick();
+        showScreen(startScreen);
+        playSound('back');
+    });
+    
+    // Event listeners del tutorial interactivo
+    navPrev.addEventListener('click', function() {
+        audioManager.playButtonClick();
+        prevTutorialStep();
+    });
+    
+    navNext.addEventListener('click', function() {
+        audioManager.playButtonClick();
+        nextTutorialStep();
+    });
+    
+    // Event listener para finalizar tutorial
+    const finishTutorial = document.getElementById('finishTutorial');
+    if (finishTutorial) {
+        finishTutorial.addEventListener('click', function() {
+            audioManager.playButtonClick();
+            closeInteractiveTutorial();
+        });
+    }
+    
+    // Event listeners para botones de pasos
+    const stepButtons = document.querySelectorAll('.tutorial-step-btn');
+    stepButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            audioManager.playButtonClick();
+            const step = parseInt(button.dataset.step);
+            if (step !== currentTutorialStep) {
+                currentTutorialStep = step;
+                updateTutorialStep();
+            }
+        });
+    });
+    
+    backFromInteractiveTutorial.addEventListener('click', function() {
+        audioManager.playButtonClick();
+        backFromInteractiveTutorialMenu();
     });
     
     // Botón temporal para finalizar partida (solo para pruebas)
@@ -4141,6 +8456,174 @@ function loadSettings() {
     }
 }
 
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
 // Cargar configuración al iniciar
 window.addEventListener('load', function() {
     loadSettings();
@@ -4186,3 +8669,3208 @@ function createRandomStars() {
 
 // Iniciar animación de estrellas
 setTimeout(createRandomStars, 1000);
+
+// ===== TABLERO DE PREVISUALIZACIÓN INDEPENDIENTE =====
+
+// Función para aplicar efectos de dificultad al tablero de previsualización
+function applyDifficultyToPreviewBoard() {
+    const previewBoard = document.getElementById('previewBoard');
+    if (!previewBoard) return;
+    
+    // Remover todas las clases de dificultad
+    previewBoard.classList.remove('difficulty-beginner', 'difficulty-intermediate', 'difficulty-expert');
+    
+    // Solo aplicar efectos si hay tanto tablero como dificultad seleccionados
+    if (gameSettings.boardSize && gameSettings.cpuDifficulty) {
+        const difficultyClasses = {
+            'beginner': 'difficulty-beginner',
+            'intermediate': 'difficulty-intermediate',
+            'expert': 'difficulty-expert'
+        };
+        
+        if (difficultyClasses[gameSettings.cpuDifficulty]) {
+            previewBoard.classList.add(difficultyClasses[gameSettings.cpuDifficulty]);
+        }
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para actualizar la información de la partida según el modo seleccionado
+function updateGameInfoPreview() {
+    const piecesInfo = document.getElementById('piecesInfo');
+    const formationsInfo = document.getElementById('formationsInfo');
+    const pointsInfo = document.getElementById('pointsInfo');
+    const separator1 = document.getElementById('separator1');
+    const separator2 = document.getElementById('separator2');
+    
+    if (!piecesInfo || !formationsInfo || !pointsInfo) return;
+    
+    // Verificar si hay un tablero seleccionado visualmente
+    const selectedBoardOption = document.querySelector('.board-option.selected');
+    
+    if (!selectedBoardOption) {
+        // Mostrar mensaje predeterminado ocupando las 3 columnas
+        piecesInfo.textContent = '';
+        piecesInfo.style.display = 'none';
+        formationsInfo.textContent = 'Información sobre la partida';
+        formationsInfo.style.display = 'inline';
+        formationsInfo.style.gridColumn = '1 / -1'; // Ocupa todas las columnas
+        pointsInfo.textContent = '';
+        pointsInfo.style.display = 'none';
+        return;
+    }
+    
+    // Obtener configuración del tablero seleccionado
+    const boardSize = selectedBoardOption.dataset.size;
+    const config = BOARD_CONFIGS[boardSize];
+    
+    if (config) {
+        // Mostrar información específica del modo
+        piecesInfo.textContent = `${config.pieces} fichas`;
+        piecesInfo.style.display = 'inline';
+        piecesInfo.style.gridColumn = ''; // Reset
+        
+        // Calcular formaciones posibles
+        const possibleFormations = calculatePossibleFormations(config.pieces, config.cols);
+        formationsInfo.textContent = `${possibleFormations} formaciones`;
+        formationsInfo.style.display = 'inline';
+        formationsInfo.style.gridColumn = ''; // Reset
+        
+        pointsInfo.textContent = `${config.points} puntos`;
+        pointsInfo.style.display = 'inline';
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para calcular formaciones posibles
+function calculatePossibleFormations(pieces, cols) {
+    // Calcular combinaciones: C(cols, pieces)
+    if (pieces > cols) return 0;
+    
+    let numerator = 1;
+    let denominator = 1;
+    
+    for (let i = 0; i < pieces; i++) {
+        numerator *= (cols - i);
+        denominator *= (i + 1);
+    }
+    
+    return Math.floor(numerator / denominator);
+}
+
+// Función para verificar si se puede empezar el juego
+function checkCanStartGame() {
+    const startGameBtn = document.getElementById('startGame');
+    if (!startGameBtn) return;
+    
+    // Habilitar solo si hay tanto tablero como dificultad seleccionados
+    const hasBoard = gameSettings.boardSize !== '';
+    const hasDifficulty = gameSettings.cpuDifficulty !== '';
+    
+    startGameBtn.disabled = !(hasBoard && hasDifficulty);
+}
+
+// Función para mostrar el texto por defecto (sin recuadro)
+function showDefaultPreview() {
+    const previewBoard = document.getElementById('previewBoard');
+    if (!previewBoard) return;
+    
+    // Limpiar contenido anterior
+    previewBoard.innerHTML = '';
+    
+    // Configurar el contenedor del tablero
+    previewBoard.className = '';
+    previewBoard.style.display = 'flex';
+    previewBoard.style.justifyContent = 'center';
+    previewBoard.style.alignItems = 'center';
+    previewBoard.style.background = 'transparent';
+    previewBoard.style.border = 'none';
+    previewBoard.style.boxShadow = 'none';
+    previewBoard.style.padding = '0';
+    previewBoard.style.borderRadius = '0';
+    previewBoard.style.transform = 'translateY(210px)'; // Bajar hasta la mitad de la columna
+    previewBoard.style.transformOrigin = '';
+    previewBoard.style.position = 'relative';
+    previewBoard.style.pointerEvents = 'none';
+    
+    // Crear elemento de texto
+    const textElement = document.createElement('div');
+    textElement.textContent = 'Previsualización del tablero';
+    textElement.style.color = '#cccccc';
+    textElement.style.fontSize = '0.85rem';
+    textElement.style.fontWeight = 'normal';
+    textElement.style.fontFamily = 'inherit';
+    textElement.style.textAlign = 'center';
+    textElement.style.pointerEvents = 'none';
+    
+    previewBoard.appendChild(textElement);
+}
+
+// Función para crear el tablero Clásico independiente
+function createIndependentClassicBoard() {
+    const previewBoard = document.getElementById('previewBoard');
+    if (!previewBoard) return;
+    
+    // Limpiar contenido anterior
+    previewBoard.innerHTML = '';
+    
+    // Configuración del tablero Clásico
+    const rows = 11;
+    const cols = 9;
+    const cellSize = 55; // Tamaño original de celda
+    
+    // Configurar el contenedor del tablero
+    previewBoard.className = 'board classic-preview';
+    previewBoard.style.display = 'flex';
+    previewBoard.style.flexDirection = 'column';
+    previewBoard.style.gap = '0';
+    previewBoard.style.background = 'var(--board-bg)';
+    previewBoard.style.padding = '20px';
+    previewBoard.style.borderRadius = '12px';
+    previewBoard.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3)';
+    previewBoard.style.border = '3px solid var(--board-border)';
+    previewBoard.style.position = 'relative';
+    previewBoard.style.transform = ''; // No aplicar transform aquí, se hace en CSS
+    previewBoard.style.transformOrigin = 'top center';
+    previewBoard.style.pointerEvents = 'none'; // Desactivar interacciones
+    
+    // Calcular dimensiones de las filas de meta
+    const goalRowWidth = cellSize * cols;
+    const goalRowHeight = 40;
+    
+    // Crear las filas del tablero
+    for (let row = 0; row < rows; row++) {
+        const boardRow = document.createElement('div');
+        boardRow.className = 'board-row';
+        boardRow.style.display = 'flex';
+        boardRow.style.gap = '0';
+        
+        // Determinar el tipo de fila
+        let rowType = 'normal';
+        if (row === 0) {
+            rowType = 'blue-goal';
+        } else if (row === rows - 1) {
+            rowType = 'red-goal';
+        }
+        
+        if (rowType === 'blue-goal' || rowType === 'red-goal') {
+            // Crear fila de meta
+            const goalCell = document.createElement('div');
+            goalCell.className = `board-cell ${rowType} goal-row`;
+            goalCell.style.width = `${goalRowWidth}px`;
+            goalCell.style.height = `${goalRowHeight}px`;
+            goalCell.style.display = 'flex';
+            goalCell.style.alignItems = 'center';
+            goalCell.style.justifyContent = 'center';
+            goalCell.style.border = 'none';
+            goalCell.style.cursor = 'pointer';
+            goalCell.style.pointerEvents = 'auto';
+            
+            // Aplicar estilos de meta
+            if (rowType === 'blue-goal') {
+                goalCell.style.backgroundImage = `
+                    repeating-conic-gradient(
+                        var(--goal-blue-primary) 0deg 90deg,
+                        var(--goal-blue-secondary) 90deg 180deg,
+                        var(--goal-blue-primary) 180deg 270deg,
+                        var(--goal-blue-secondary) 270deg 360deg
+                    )
+                `;
+                goalCell.style.backgroundSize = '16px 16px';
+            } else {
+                goalCell.style.backgroundImage = `
+                    repeating-conic-gradient(
+                        var(--goal-red-primary) 0deg 90deg,
+                        var(--goal-red-secondary) 90deg 180deg,
+                        var(--goal-red-primary) 180deg 270deg,
+                        var(--goal-red-secondary) 270deg 360deg
+                    )
+                `;
+                goalCell.style.backgroundSize = '16px 16px';
+            }
+            
+            // Event listeners desactivados - el tablero no es responsivo al cursor
+            // goalCell.addEventListener('mouseenter', () => highlightZone(row));
+            // goalCell.addEventListener('mouseleave', () => clearHighlight());
+            
+            boardRow.appendChild(goalCell);
+        } else {
+            // Crear filas normales
+            for (let col = 0; col < cols; col++) {
+                const cell = document.createElement('div');
+                cell.className = 'board-cell';
+                cell.style.width = `${cellSize}px`;
+                cell.style.height = `${cellSize}px`;
+                cell.style.display = 'flex';
+                cell.style.alignItems = 'center';
+                cell.style.justifyContent = 'center';
+                cell.style.cursor = 'default';
+                cell.style.pointerEvents = 'none';
+                cell.style.borderRight = '1px solid var(--board-grid-line)';
+                cell.style.borderBottom = '1px solid var(--board-grid-line)';
+                
+                // Determinar el tipo de celda
+                let cellType = 'neutral';
+                if (row === 1) {
+                    cellType = 'blue-start';
+                } else if (row === rows - 2) {
+                    cellType = 'red-start';
+                } else if (row === 5) {
+                    cellType = 'safe-zone'; // Toda la fila central (fila 5) es zona segura
+                }
+                
+                cell.classList.add(cellType);
+                
+                // Aplicar estilos según el tipo
+                if (cellType === 'neutral' || cellType === 'neutral2') {
+                    cell.style.background = 'var(--cell-normal)';
+                } else if (cellType === 'blue-start' || cellType === 'red-start') {
+                    cell.style.background = 'var(--cell-start)';
+                } else if (cellType === 'safe-zone') {
+                    cell.style.background = 'var(--cell-safe)';
+                    cell.style.position = 'relative';
+                    
+                    // Crear el indicador interno de zona segura
+                    const innerZone = document.createElement('div');
+                    innerZone.style.position = 'absolute';
+                    innerZone.style.top = '4px';
+                    innerZone.style.left = '4px';
+                    innerZone.style.right = '4px';
+                    innerZone.style.bottom = '4px';
+                    innerZone.style.background = 'var(--cell-safe-inner)';
+                    innerZone.style.borderRadius = '4px';
+                    innerZone.style.border = '2px solid var(--cell-safe-border)';
+                    innerZone.style.pointerEvents = 'none';
+                    
+                    cell.appendChild(innerZone);
+                }
+                
+                boardRow.appendChild(cell);
+            }
+        }
+        
+        previewBoard.appendChild(boardRow);
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para crear el tablero clásico del tutorial (réplica exacta del tablero de juego)
+function createTutorialClassicBoard() {
+    const tutorialBoard = document.getElementById('tutorialBoard');
+    if (!tutorialBoard) return;
+    
+    // Limpiar contenido anterior
+    tutorialBoard.innerHTML = '';
+    
+    // Configuración del tablero Clásico (igual que el juego real)
+    const BOARD_ROWS = 11;
+    const BOARD_COLS = 9;
+    const BLUE_GOAL_ROW = 0;
+    const RED_GOAL_ROW = BOARD_ROWS - 1;
+    const RED_START_ROW = 1;
+    const BLUE_START_ROW = BOARD_ROWS - 2;
+    const SAFE_ZONE_ROW = Math.floor(BOARD_ROWS / 2); // Fila 5 (índice 5)
+    
+    // Configurar el contenedor del tablero (igual que el juego real)
+    tutorialBoard.className = 'board tutorial-classic';
+    tutorialBoard.style.display = 'flex';
+    tutorialBoard.style.flexDirection = 'column';
+    tutorialBoard.style.gap = '0';
+    tutorialBoard.style.background = 'var(--board-bg)';
+    tutorialBoard.style.padding = '20px';
+    tutorialBoard.style.borderRadius = '12px';
+    tutorialBoard.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3)';
+    tutorialBoard.style.border = '3px solid var(--board-border)';
+    tutorialBoard.style.position = 'relative';
+    tutorialBoard.style.pointerEvents = 'none'; // Desactivar interacciones
+    
+    // Función para obtener el tipo de celda (igual que el juego real)
+    function getCellType(row) {
+        if (row === BLUE_GOAL_ROW) return 'blue-goal';
+        if (row === RED_GOAL_ROW) return 'red-goal';
+        if (row === RED_START_ROW) return 'red-start';
+        if (row === BLUE_START_ROW) return 'blue-start';
+        if (row === SAFE_ZONE_ROW) return 'safe-zone';
+        
+        // Filas neutrales
+        if (row < SAFE_ZONE_ROW) {
+            return 'neutral';    // Campo del jugador azul
+        } else {
+            return 'neutral2';   // Campo del jugador rojo
+        }
+    }
+    
+    // Crear las filas del tablero (igual que createBoardHTML)
+    for (let row = 0; row < BOARD_ROWS; row++) {
+        const rowElement = document.createElement('div');
+        rowElement.className = 'board-row';
+        rowElement.dataset.row = row;
+        
+        // Para las filas de meta, crear una sola columna que ocupe todo el ancho
+        if (row === BLUE_GOAL_ROW || row === RED_GOAL_ROW) {
+            const cellElement = document.createElement('div');
+            const cellType = getCellType(row);
+            
+            // Clases CSS para la celda de meta (igual que el juego real)
+            cellElement.className = `board-cell ${cellType} goal-row`;
+            cellElement.dataset.row = row;
+            cellElement.dataset.col = 'all';
+            
+            // Estilos para filas de meta (igual que el juego real)
+            cellElement.style.width = 'var(--goal-row-width)';
+            cellElement.style.height = 'var(--goal-row-height)';
+            cellElement.style.display = 'flex';
+            cellElement.style.alignItems = 'center';
+            cellElement.style.justifyContent = 'center';
+            cellElement.style.border = 'none';
+            cellElement.style.pointerEvents = 'none';
+            
+            rowElement.appendChild(cellElement);
+        } else {
+            // Para el resto de filas, crear las 9 columnas normales
+            for (let col = 0; col < BOARD_COLS; col++) {
+                const cellElement = document.createElement('div');
+                const cellType = getCellType(row);
+                
+                // Clases CSS para la celda (igual que el juego real)
+                cellElement.className = `board-cell ${cellType}`;
+                cellElement.dataset.row = row;
+                cellElement.dataset.col = col;
+                
+                // Estilos de la celda (igual que el juego real)
+                cellElement.style.width = 'var(--cell-size)';
+                cellElement.style.height = 'var(--cell-size)';
+                cellElement.style.display = 'flex';
+                cellElement.style.alignItems = 'center';
+                cellElement.style.justifyContent = 'center';
+                cellElement.style.cursor = 'pointer';
+                cellElement.style.transition = 'all 0.3s ease';
+                cellElement.style.position = 'relative';
+                cellElement.style.borderRight = '1px solid var(--board-grid-line)';
+                cellElement.style.borderBottom = '1px solid var(--board-grid-line)';
+                cellElement.style.pointerEvents = 'auto';
+                
+                // Quitar bordes de la última columna y última fila
+                if (col === BOARD_COLS - 1) {
+                    cellElement.style.borderRight = 'none';
+                }
+                if (row === BOARD_ROWS - 1) {
+                    cellElement.style.borderBottom = 'none';
+                }
+                
+                // Agregar clases de zona para interactividad
+                if (row === BLUE_GOAL_ROW) {
+                    cellElement.classList.add('zone-blue-goal');
+                } else if (row === RED_START_ROW) {
+                    cellElement.classList.add('zone-red-start');
+                } else if (row < SAFE_ZONE_ROW && row > RED_START_ROW) {
+                    cellElement.classList.add('zone-red-field');
+                } else if (row === SAFE_ZONE_ROW) {
+                    cellElement.classList.add('zone-safe');
+                } else if (row > SAFE_ZONE_ROW && row < BLUE_START_ROW) {
+                    cellElement.classList.add('zone-blue-field');
+                } else if (row === BLUE_START_ROW) {
+                    cellElement.classList.add('zone-blue-start');
+                } else if (row === RED_GOAL_ROW) {
+                    cellElement.classList.add('zone-red-goal');
+                }
+                
+                // Event listeners desactivados - el tablero no es responsivo al cursor
+                // cellElement.addEventListener('mouseenter', () => highlightZone(row));
+                // cellElement.addEventListener('mouseleave', () => clearHighlight());
+                
+                rowElement.appendChild(cellElement);
+            }
+        }
+        
+        tutorialBoard.appendChild(rowElement);
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para resaltar una zona del tablero
+function highlightZone(row) {
+    const tutorialBoard = document.getElementById('tutorialBoard');
+    if (!tutorialBoard) return;
+    
+    // Limpiar timeout anterior si existe
+    if (window.highlightTimeout) {
+        clearTimeout(window.highlightTimeout);
+    }
+    
+    // Remover resaltado anterior de todas las filas
+    tutorialBoard.querySelectorAll('.board-row').forEach(rowElement => {
+        rowElement.classList.remove('zone-highlighted');
+    });
+    
+    // Determinar qué filas resaltar según la zona
+    const rowsToHighlight = getRowsForZone(row);
+    
+    // Resaltar todas las filas de la zona
+    rowsToHighlight.forEach((rowIndex, index) => {
+        const rowElement = tutorialBoard.querySelector(`.board-row[data-row="${rowIndex}"]`);
+        if (rowElement) {
+            rowElement.classList.add('zone-highlighted');
+            
+            // Agregar clase field-zone para campos de equipo (múltiples filas)
+            if (rowsToHighlight.length > 1) {
+                rowElement.classList.add('field-zone');
+            }
+        }
+    });
+    
+    // Mostrar información de la zona
+    showZoneInfo(row);
+}
+
+// Función para limpiar el resaltado
+function clearHighlight() {
+    const tutorialBoard = document.getElementById('tutorialBoard');
+    if (!tutorialBoard) return;
+    
+    // Limpiar timeout anterior si existe
+    if (window.highlightTimeout) {
+        clearTimeout(window.highlightTimeout);
+    }
+    
+    // Pequeño delay para evitar parpadeos
+    window.highlightTimeout = setTimeout(() => {
+        tutorialBoard.querySelectorAll('.board-row').forEach(rowElement => {
+            rowElement.classList.remove('zone-highlighted', 'field-zone');
+        });
+        
+        // Ocultar información de la zona
+        hideZoneInfo();
+    }, 100);
+}
+
+// Función para mostrar información de la zona
+function showZoneInfo(row) {
+    const zoneInfoElement = document.getElementById('zoneInfo');
+    if (!zoneInfoElement) return;
+    
+    const zoneInfo = getZoneInfo(row);
+    if (zoneInfo) {
+        // Actualizar el contenido de la zona
+        zoneInfoElement.innerHTML = zoneInfo.content;
+        
+        // Actualizar la pestaña activa
+        updateActiveTab(zoneInfo.zone);
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para actualizar la pestaña activa
+function updateActiveTab(zone) {
+    const tabs = document.querySelectorAll('.tutorial-tab');
+    tabs.forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.zone === zone) {
+            tab.classList.add('active');
+        }
+    });
+}
+
+// Función para obtener información detallada de cada zona
+function getZoneInfo(row) {
+    const BOARD_ROWS = 11;
+    const BLUE_GOAL_ROW = 0;
+    const RED_GOAL_ROW = BOARD_ROWS - 1;
+    const RED_START_ROW = 1;
+    const BLUE_START_ROW = BOARD_ROWS - 2;
+    const SAFE_ZONE_ROW = Math.floor(BOARD_ROWS / 2);
+    
+    // Determinar el tipo de zona basado en la fila
+    let zoneType;
+    if (row === BLUE_GOAL_ROW || row === RED_GOAL_ROW) {
+        zoneType = 'meta';
+    } else if (row === RED_START_ROW || row === BLUE_START_ROW) {
+        zoneType = 'aparicion';
+    } else if (row < SAFE_ZONE_ROW && row > RED_START_ROW) {
+        zoneType = 'campo';
+    } else if (row === SAFE_ZONE_ROW) {
+        zoneType = 'segura';
+    } else if (row > SAFE_ZONE_ROW && row < BLUE_START_ROW) {
+        zoneType = 'campo';
+    } else {
+        return null;
+    }
+    
+    // Usar la función unificada para obtener el contenido
+    const zoneInfo = getZoneInfoByType(zoneType);
+    if (zoneInfo) {
+        return {
+            zone: zoneType,
+            content: zoneInfo.content
+        };
+    }
+    
+    return null;
+}
+
+// Función para ocultar información de la zona
+function hideZoneInfo() {
+    const zoneInfoElement = document.getElementById('zoneInfo');
+    if (!zoneInfoElement) return;
+    
+    // Mostrar mensaje por defecto centrado
+    zoneInfoElement.innerHTML = `
+        <p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>
+    `;
+    
+    // Quitar pestaña activa
+    const tabs = document.querySelectorAll('.tutorial-tab');
+    tabs.forEach(tab => tab.classList.remove('active'));
+}
+
+// Función para resaltar zona desde pestaña
+function highlightZoneFromTab(zone) {
+    const tutorialBoard = document.getElementById('tutorialBoard');
+    if (!tutorialBoard) return;
+    
+    // Limpiar resaltado anterior
+    tutorialBoard.querySelectorAll('.board-row').forEach(rowElement => {
+        rowElement.classList.remove('zone-highlighted', 'field-zone', 'meta-highlighted');
+    });
+    
+    // Determinar qué filas resaltar según la zona
+    let rowsToHighlight = [];
+    
+    switch(zone) {
+        case 'meta':
+            rowsToHighlight = [0, 10]; // Meta azul y roja
+            break;
+        case 'aparicion':
+            rowsToHighlight = [1, 9]; // Aparición roja y azul
+            break;
+        case 'campo':
+            rowsToHighlight = [1, 2, 3, 4, 6, 7, 8, 9]; // Campos de ambos equipos + sus zonas de aparición
+            break;
+        case 'segura':
+            rowsToHighlight = [5]; // Zona segura
+            break;
+    }
+    
+    // Resaltar las filas
+    rowsToHighlight.forEach(rowIndex => {
+        const rowElement = tutorialBoard.querySelector(`.board-row[data-row="${rowIndex}"]`);
+        if (rowElement) {
+            if (zone === 'meta') {
+                // Para metas, usar clase específica sin contornos
+                rowElement.classList.add('meta-highlighted');
+            } else {
+                // Para otras zonas, usar clase normal con contornos
+                rowElement.classList.add('zone-highlighted');
+                
+                // Agregar clase field-zone para campos
+                if (zone === 'campo') {
+                    rowElement.classList.add('field-zone');
+                }
+            }
+        }
+    });
+    
+    // Mostrar fichas si es necesario
+    if (zone === 'salida') {
+        const zoneInfo = getZoneInfoByType(zone);
+        if (zoneInfo && zoneInfo.showPieces && zoneInfo.pieces) {
+            showTutorialPieces(zoneInfo.pieces);
+        }
+    } else {
+        // Limpiar fichas para otras zonas
+        clearTutorialPieces();
+    }
+    
+    // Mostrar información de la zona
+    const zoneInfo = getZoneInfoByType(zone);
+    if (zoneInfo) {
+        const zoneInfoElement = document.getElementById('zoneInfo');
+        if (zoneInfoElement) {
+            // Si hay selección de equipos, mostrar solo el contenido sin ejemplos
+            if (zone === 'campo' || zone === 'meta' || zone === 'aparicion') {
+                const contentWithoutExamples = zoneInfo.content.replace(/<div class="zone-examples">[\s\S]*?<\/div>/g, '');
+                zoneInfoElement.innerHTML = contentWithoutExamples;
+            } else {
+                zoneInfoElement.innerHTML = zoneInfo.content;
+            }
+        }
+    }
+    
+    // Mostrar/ocultar botones de equipo según la zona
+    const teamSelection = document.getElementById('teamSelection');
+    if (teamSelection) {
+        if (zone === 'campo' || zone === 'meta' || zone === 'aparicion') {
+            teamSelection.style.display = 'block';
+            // Reiniciar subselección de equipos al cambiar de pestaña
+            const teamFields = document.querySelectorAll('.team-field');
+            teamFields.forEach(field => field.classList.remove('active'));
+            // Actualizar textos según la zona
+            updateTeamButtonTexts(zone);
+        } else {
+            teamSelection.style.display = 'none';
+        }
+    }
+    
+    // Actualizar la pestaña activa
+    updateActiveTab(zone);
+}
+
+// Función para obtener información por tipo de zona
+function getZoneInfoByType(zone) {
+    const zoneInfo = {
+        meta: {
+            content: `
+                <h3>Meta</h3>
+                <p>El objetivo principal del juego es llegar a la meta con tus fichas</p>
+                <p>Cada jugador debe llegar a la meta del lado contrario del tablero</p>
+            `
+        },
+        aparicion: {
+            content: `
+                <h3>Aparición</h3>
+                <p>Zona de aparición de las fichas con una formación aleatoria</p>
+                <p>Las fichas tienen más libertad de movimiento en esta fila</p>
+            `
+        },
+        campo: {
+            content: `
+                <h3>Campos de Equipo</h3>
+                <p>Solo se puede eliminar fichas del equipo contrario en campo propio</p>
+                <p>Ten cuidado al entrar en el campo contrario, podrías ser eliminado</p>
+            `
+        },
+        segura: {
+            content: `
+                <h3>Zona Segura</h3>
+                <p>Área neutral donde las fichas están seguras</p>
+                <p>Una vez entres al seguro, nadie puede sacarte de allí</p>
+                <p>La zona segura siempre está en el centro del tablero</p>
+            `
+        }
+    };
+    
+    return zoneInfo[zone] || null;
+}
+
+// Inicializar event listeners para las pestañas
+function initializeTutorialTabs() {
+    const tabs = document.querySelectorAll('.tutorial-tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Si la pestaña ya está activa, deseleccionarla
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                // Limpiar resaltado y mostrar mensaje por defecto
+                clearTutorialHighlight();
+            } else {
+                // Actualizar pestaña activa
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Resaltar zona en el tablero
+                highlightZoneFromTab(tab.dataset.zone);
+            }
+        });
+    });
+    
+    // Asegurar que no hay pestañas activas al inicializar
+    tabs.forEach(tab => tab.classList.remove('active'));
+    
+    // Inicializar botones de equipo
+    initializeTeamButtons();
+    
+    // Mostrar mensaje por defecto
+    hideZoneInfo();
+}
+
+// Función para actualizar textos de botones según la zona
+function updateTeamButtonTexts(zone) {
+    const teamTexts = {
+        meta: {
+            blue: "Debes llevar tus fichas a esta meta sin ser eliminado",
+            red: "Evita que el rival llegue a esta meta con sus fichas"
+        },
+        aparicion: {
+            blue: "Aquí aparecen tus fichas y tendrán mayor alcance",
+            red: "El rival tendrá más rango de movimiento en esta fila"
+        },
+        campo: {
+            blue: "En esta zona puedes eliminar fichas del rival",
+            red: "Ten cuidado, el rival puede eliminarte en esta zona"
+        }
+    };
+    
+    const texts = teamTexts[zone];
+    if (texts) {
+        const blueField = document.querySelector('.team-field[data-team="blue"] .team-description');
+        const redField = document.querySelector('.team-field[data-team="red"] .team-description');
+        
+        if (blueField) blueField.textContent = texts.blue;
+        if (redField) redField.textContent = texts.red;
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para inicializar campos de equipo
+function initializeTeamButtons() {
+    const teamFields = document.querySelectorAll('.team-field');
+    teamFields.forEach(field => {
+        field.addEventListener('click', () => {
+            // Si el campo ya está activo, deseleccionarlo
+            if (field.classList.contains('active')) {
+                field.classList.remove('active');
+                // Volver al estado de la pestaña activa (mostrar ambas zonas)
+                const activeTab = document.querySelector('.tutorial-tab.active');
+                if (activeTab) {
+                    highlightZoneFromTab(activeTab.dataset.zone);
+                }
+            } else {
+                // Remover activo de todos los campos de equipo
+                teamFields.forEach(f => f.classList.remove('active'));
+                // Activar el campo clickeado
+                field.classList.add('active');
+                
+                // Resaltar zona del equipo seleccionado
+                highlightTeamField(field.dataset.team);
+            }
+        });
+    });
+}
+
+// Función para resaltar zona de equipo específico
+function highlightTeamField(team) {
+    const tutorialBoard = document.getElementById('tutorialBoard');
+    if (!tutorialBoard) return;
+    
+    // Obtener la zona actual activa
+    const activeTab = document.querySelector('.tutorial-tab.active');
+    const currentZone = activeTab ? activeTab.dataset.zone : null;
+    
+    // Limpiar resaltado anterior
+    tutorialBoard.querySelectorAll('.board-row').forEach(rowElement => {
+        rowElement.classList.remove('zone-highlighted', 'field-zone', 'meta-highlighted');
+    });
+    
+    let rowsToHighlight = [];
+    let useMetaHighlight = false;
+    
+    if (currentZone === 'meta') {
+        // Meta específica del equipo
+        if (team === 'blue') {
+            rowsToHighlight = [0]; // Meta azul
+        } else if (team === 'red') {
+            rowsToHighlight = [10]; // Meta roja
+        }
+        useMetaHighlight = true;
+    } else if (currentZone === 'aparicion') {
+        // Aparición específica del equipo
+        if (team === 'blue') {
+            rowsToHighlight = [9]; // Aparición azul
+        } else if (team === 'red') {
+            rowsToHighlight = [1]; // Aparición roja
+        }
+    } else if (currentZone === 'campo') {
+        // Campo específico del equipo
+        if (team === 'blue') {
+            rowsToHighlight = [6, 7, 8, 9]; // Campo azul + aparición
+        } else if (team === 'red') {
+            rowsToHighlight = [1, 2, 3, 4]; // Campo rojo + aparición
+        }
+    }
+    
+    // Resaltar las filas
+    rowsToHighlight.forEach(rowIndex => {
+        const rowElement = tutorialBoard.querySelector(`.board-row[data-row="${rowIndex}"]`);
+        if (rowElement) {
+            if (useMetaHighlight) {
+                rowElement.classList.add('meta-highlighted');
+            } else {
+                rowElement.classList.add('zone-highlighted', 'field-zone');
+            }
+        }
+    });
+}
+
+// Función para limpiar resaltado del tutorial
+function clearTutorialHighlight() {
+    const tutorialBoard = document.getElementById('tutorialBoard');
+    if (!tutorialBoard) return;
+    
+    // Limpiar resaltado del tablero
+    tutorialBoard.querySelectorAll('.board-row').forEach(rowElement => {
+        rowElement.classList.remove('zone-highlighted', 'field-zone', 'meta-highlighted');
+    });
+    
+    // Limpiar campos de equipo activos
+    const teamFields = document.querySelectorAll('.team-field');
+    teamFields.forEach(field => field.classList.remove('active'));
+    
+    // Ocultar selección de equipos
+    const teamSelection = document.getElementById('teamSelection');
+    if (teamSelection) {
+        teamSelection.style.display = 'none';
+    }
+    
+    // Limpiar fichas del tablero
+    clearTutorialPieces();
+    
+    // Mostrar mensaje por defecto
+    hideZoneInfo();
+}
+
+// Función para mostrar fichas en el tutorial
+function showTutorialPieces(pieces) {
+    const tutorialBoard = document.getElementById('tutorialBoard');
+    if (!tutorialBoard) return;
+    
+    // Limpiar fichas existentes
+    clearTutorialPieces();
+    
+    // Añadir fichas
+    pieces.forEach(piece => {
+        const rowElement = tutorialBoard.querySelector(`.board-row[data-row="${piece.row}"]`);
+        if (rowElement) {
+            const cellElement = rowElement.querySelector(`.board-cell[data-col="${piece.col}"]`);
+            if (cellElement) {
+                const pieceElement = document.createElement('div');
+                pieceElement.className = `piece ${piece.team}-piece`;
+                pieceElement.style.width = '100%';
+                pieceElement.style.height = '100%';
+                pieceElement.style.borderRadius = '50%';
+                pieceElement.style.backgroundColor = piece.team === 'red' ? '#E74C3C' : '#3498DB';
+                pieceElement.style.border = '2px solid #ffffff';
+                pieceElement.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.3)';
+                cellElement.appendChild(pieceElement);
+            }
+        }
+    });
+}
+
+// Función para limpiar fichas del tutorial
+function clearTutorialPieces() {
+    const tutorialBoard = document.getElementById('tutorialBoard');
+    if (!tutorialBoard) return;
+    
+    const pieces = tutorialBoard.querySelectorAll('.piece');
+    pieces.forEach(piece => piece.remove());
+}
+
+// Función para inicializar las pestañas de movimientos (completamente independiente)
+function initializeMovementTabs() {
+    const tabs = document.querySelectorAll('.movement-tab');
+    const movementInfoElement = document.getElementById('movementInfo');
+    
+    if (!movementInfoElement) return;
+    
+    // Mostrar mensaje por defecto
+    movementInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+    
+    // Agregar event listeners a las pestañas
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Si la pestaña ya está activa, deseleccionarla
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                // Mostrar mensaje por defecto
+                movementInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                // Actualizar pestaña activa
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Mostrar contenido de la zona
+                const movement = tab.getAttribute('data-movement');
+                showMovementInfo(movement);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de movimientos
+function showMovementInfo(movement) {
+    const movementInfoElement = document.getElementById('movementInfo');
+    if (!movementInfoElement) return;
+    
+    const movementData = getMovementInfoByType(movement);
+    if (movementData) {
+        movementInfoElement.innerHTML = movementData.content;
+    } else {
+        movementInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para obtener información de movimientos
+function getMovementInfoByType(movement) {
+    const movementData = {
+        salida: {
+            content: `
+                <h3>Movimientos de Salida</h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-movimientos-salida-${document.body.classList.contains('dark-theme') ? 'oscuro' : 'claro'}.png" alt="Movimientos de Salida" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Movimientos hacia delante o hacia los lados</p>
+                        <p>En esta fila puedes moverte una o dos casillas</p>
+                        <p>Si sales de la zona de aparición, no podrás volver a ella</p>
+                    </div>
+                </div>
+            `
+        },
+        defensivo: {
+            content: `
+                <h3>Movimientos en Campo Propio</h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-movimientos-defensivo-${document.body.classList.contains('dark-theme') ? 'oscuro' : 'claro'}.png" alt="Campo Defensivo" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Movimientos hacia delante o hacia los lados</p>
+                        <p>Solo puedes moverte una casilla en cada posible dirección</p>
+                        <p>Podrás moverte así hasta que llegues a la zona segura</p>
+                    </div>
+                </div>
+            `
+        },
+        ofensivo: {
+            content: `
+                <h3>Movimientos en Campo Contrario</h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-movimientos-ofensivo-${document.body.classList.contains('dark-theme') ? 'oscuro' : 'claro'}.png" alt="Campo Ofensivo" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Movimientos hacia delante; recto o en diagonal</p>
+                        <p>En la zona de ataque, solo puedes moverte una casilla</p>
+                        <p>Solamente puedes avanzar estando en el campo contrario</p>
+                    </div>
+                </div>
+            `
+        },
+        meta: {
+            content: `
+                <h3>Movimiento para llegar a la meta</h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-movimientos-meta-${document.body.classList.contains('dark-theme') ? 'oscuro' : 'claro'}.png" alt="Zona de Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cuando llegues a la zona de aparición del rival, solo podrás entrar a la meta y sumar puntos</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    
+    return movementData[movement] || null;
+}
+
+// Función para actualizar las imágenes de movimientos según el tema
+function updateMovementImages() {
+    const isDarkTheme = document.body.classList.contains('dark-theme');
+    const themeSuffix = isDarkTheme ? 'oscuro' : 'claro';
+    
+    // Actualizar todas las imágenes de movimientos
+    const images = document.querySelectorAll('.movement-image');
+    images.forEach(img => {
+        const src = img.src;
+        if (src.includes('tutorial-movimientos-')) {
+            const baseName = src.split('-').slice(0, -1).join('-');
+            const newSrc = `${baseName}-${themeSuffix}.png`;
+            img.src = newSrc;
+        }
+    });
+    
+    // Actualizar contenido si hay una pestaña activa
+    const activeTab = document.querySelector('.movement-tab.active');
+    if (activeTab) {
+        const movement = activeTab.getAttribute('data-movement');
+        showMovementInfo(movement);
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para actualizar las imágenes cuando cambie el tema
+function updateMovementImagesTheme() {
+    // Solo actualizar si estamos en el paso de movimientos
+    if (currentTutorialStep === 3) {
+        updateMovementImages();
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+
+// Función para obtener las filas que pertenecen a una zona
+function getRowsForZone(row) {
+    const BOARD_ROWS = 11;
+    const BLUE_GOAL_ROW = 0;
+    const RED_GOAL_ROW = BOARD_ROWS - 1;
+    const RED_START_ROW = 1;
+    const BLUE_START_ROW = BOARD_ROWS - 2;
+    const SAFE_ZONE_ROW = Math.floor(BOARD_ROWS / 2);
+    
+    if (row === BLUE_GOAL_ROW || row === RED_GOAL_ROW) {
+        // Metas - sin resaltado
+        return [];
+    } else if (row === RED_START_ROW || row === BLUE_START_ROW) {
+        // Zonas de aparición - ambas apariciones (roja y azul)
+        return [RED_START_ROW, BLUE_START_ROW];
+    } else if (row < SAFE_ZONE_ROW && row > RED_START_ROW) {
+        // Campo del equipo rojo - incluye zona de aparición (filas 1, 2, 3, 4)
+        return [1, 2, 3, 4];
+    } else if (row === SAFE_ZONE_ROW) {
+        // Zona segura - solo la fila 5
+        return [SAFE_ZONE_ROW];
+    } else if (row > SAFE_ZONE_ROW && row < BLUE_START_ROW) {
+        // Campo del equipo azul - incluye zona de aparición (filas 6, 7, 8, 9)
+        return [6, 7, 8, 9];
+    }
+    
+    return [row]; // Por defecto, solo la fila actual
+}
+
+// Función para obtener información de cada zona
+
+// Función para crear el tablero Bala independiente
+function createIndependentBalaBoard() {
+    const previewBoard = document.getElementById('previewBoard');
+    if (!previewBoard) return;
+    
+    // Limpiar contenido anterior
+    previewBoard.innerHTML = '';
+    
+    // Configuración del tablero Bala (bala)
+    const rows = 7;
+    const cols = 5;
+    const cellSize = 55; // Tamaño original de celda
+    
+    // Configurar el contenedor del tablero
+    previewBoard.className = 'board bala-preview';
+    previewBoard.style.display = 'flex';
+    previewBoard.style.flexDirection = 'column';
+    previewBoard.style.gap = '0';
+    previewBoard.style.background = 'var(--board-bg)';
+    previewBoard.style.padding = '20px';
+    previewBoard.style.borderRadius = '12px';
+    previewBoard.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3)';
+    previewBoard.style.border = '3px solid var(--board-border)';
+    previewBoard.style.position = 'relative';
+    previewBoard.style.transform = ''; // No aplicar transform aquí, se hace en CSS
+    previewBoard.style.transformOrigin = 'top center';
+    previewBoard.style.pointerEvents = 'none'; // Desactivar interacciones
+    
+    // Calcular dimensiones de las filas de meta
+    const goalRowWidth = cellSize * cols;
+    const goalRowHeight = 40;
+    
+    // Crear las filas del tablero
+    for (let row = 0; row < rows; row++) {
+        const boardRow = document.createElement('div');
+        boardRow.className = 'board-row';
+        boardRow.style.display = 'flex';
+        boardRow.style.gap = '0';
+        
+        // Determinar el tipo de fila
+        let rowType = 'normal';
+        if (row === 0) {
+            rowType = 'blue-goal';
+        } else if (row === rows - 1) {
+            rowType = 'red-goal';
+        }
+        
+        if (rowType === 'blue-goal' || rowType === 'red-goal') {
+            // Crear fila de meta
+            const goalCell = document.createElement('div');
+            goalCell.className = `board-cell ${rowType} goal-row`;
+            goalCell.style.width = `${goalRowWidth}px`;
+            goalCell.style.height = `${goalRowHeight}px`;
+            goalCell.style.display = 'flex';
+            goalCell.style.alignItems = 'center';
+            goalCell.style.justifyContent = 'center';
+            goalCell.style.border = 'none';
+            goalCell.style.cursor = 'pointer';
+            goalCell.style.pointerEvents = 'auto';
+            
+            // Aplicar estilos de meta
+            if (rowType === 'blue-goal') {
+                goalCell.style.backgroundImage = `
+                    repeating-conic-gradient(
+                        var(--goal-blue-primary) 0deg 90deg,
+                        var(--goal-blue-secondary) 90deg 180deg,
+                        var(--goal-blue-primary) 180deg 270deg,
+                        var(--goal-blue-secondary) 270deg 360deg
+                    )
+                `;
+                goalCell.style.backgroundSize = '16px 16px';
+            } else {
+                goalCell.style.backgroundImage = `
+                    repeating-conic-gradient(
+                        var(--goal-red-primary) 0deg 90deg,
+                        var(--goal-red-secondary) 90deg 180deg,
+                        var(--goal-red-primary) 180deg 270deg,
+                        var(--goal-red-secondary) 270deg 360deg
+                    )
+                `;
+                goalCell.style.backgroundSize = '16px 16px';
+            }
+            
+            // Event listeners desactivados - el tablero no es responsivo al cursor
+            // goalCell.addEventListener('mouseenter', () => highlightZone(row));
+            // goalCell.addEventListener('mouseleave', () => clearHighlight());
+            
+            boardRow.appendChild(goalCell);
+        } else {
+            // Crear filas normales
+            for (let col = 0; col < cols; col++) {
+                const cell = document.createElement('div');
+                cell.className = 'board-cell';
+                cell.style.width = `${cellSize}px`;
+                cell.style.height = `${cellSize}px`;
+                cell.style.display = 'flex';
+                cell.style.alignItems = 'center';
+                cell.style.justifyContent = 'center';
+                cell.style.cursor = 'default';
+                cell.style.pointerEvents = 'none';
+                cell.style.borderRight = '1px solid var(--board-grid-line)';
+                cell.style.borderBottom = '1px solid var(--board-grid-line)';
+                
+                // Determinar el tipo de celda
+                let cellType = 'neutral';
+                if (row === 1) {
+                    cellType = 'blue-start';
+                } else if (row === rows - 2) {
+                    cellType = 'red-start';
+                } else if (row === 3) {
+                    cellType = 'safe-zone'; // Toda la fila central es zona segura
+                }
+                
+                cell.classList.add(cellType);
+                
+                // Aplicar estilos según el tipo
+                if (cellType === 'neutral' || cellType === 'neutral2') {
+                    cell.style.background = 'var(--cell-normal)';
+                } else if (cellType === 'blue-start' || cellType === 'red-start') {
+                    cell.style.background = 'var(--cell-start)';
+                } else if (cellType === 'safe-zone') {
+                    cell.style.background = 'var(--cell-safe)';
+                    cell.style.position = 'relative';
+                    
+                    // Crear el indicador interno de zona segura
+                    const innerZone = document.createElement('div');
+                    innerZone.style.position = 'absolute';
+                    innerZone.style.top = '4px';
+                    innerZone.style.left = '4px';
+                    innerZone.style.right = '4px';
+                    innerZone.style.bottom = '4px';
+                    innerZone.style.background = 'var(--cell-safe-inner)';
+                    innerZone.style.borderRadius = '4px';
+                    innerZone.style.opacity = '0.6';
+                    innerZone.style.zIndex = '1';
+                    cell.appendChild(innerZone);
+                }
+                
+                // Remover bordes de los últimos elementos
+                if (col === cols - 1) {
+                    cell.style.borderRight = 'none';
+                }
+                
+                boardRow.appendChild(cell);
+            }
+        }
+        
+        previewBoard.appendChild(boardRow);
+    }
+    
+    // Remover el borde inferior de la última fila
+    const lastRow = previewBoard.lastElementChild;
+    if (lastRow && lastRow.lastElementChild) {
+        lastRow.lastElementChild.style.borderBottom = 'none';
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para crear el tablero Marathon independiente
+function createIndependentMarathonBoard() {
+    const previewBoard = document.getElementById('previewBoard');
+    if (!previewBoard) return;
+    
+    // Limpiar contenido anterior
+    previewBoard.innerHTML = '';
+    
+    // Configuración del tablero Marathon (marathon)
+    const rows = 15;
+    const cols = 11;
+    const cellSize = 55; // Tamaño original de celda
+    
+    // Configurar el contenedor del tablero
+    previewBoard.className = 'board marathon-preview';
+    previewBoard.style.display = 'flex';
+    previewBoard.style.flexDirection = 'column';
+    previewBoard.style.gap = '0';
+    previewBoard.style.background = 'var(--board-bg)';
+    previewBoard.style.padding = '20px';
+    previewBoard.style.borderRadius = '12px';
+    previewBoard.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3)';
+    previewBoard.style.border = '3px solid var(--board-border)';
+    previewBoard.style.position = 'relative';
+    previewBoard.style.transform = ''; // No aplicar transform aquí, se hace en CSS
+    previewBoard.style.transformOrigin = 'top center';
+    previewBoard.style.pointerEvents = 'none'; // Desactivar interacciones
+    
+    // Calcular dimensiones de las filas de meta
+    const goalRowWidth = cellSize * cols;
+    const goalRowHeight = 40;
+    
+    // Crear las filas del tablero
+    for (let row = 0; row < rows; row++) {
+        const boardRow = document.createElement('div');
+        boardRow.className = 'board-row';
+        boardRow.style.display = 'flex';
+        boardRow.style.gap = '0';
+        
+        // Determinar el tipo de fila
+        let rowType = 'normal';
+        if (row === 0) {
+            rowType = 'blue-goal';
+        } else if (row === rows - 1) {
+            rowType = 'red-goal';
+        }
+        
+        if (rowType === 'blue-goal' || rowType === 'red-goal') {
+            // Crear fila de meta
+            const goalCell = document.createElement('div');
+            goalCell.className = `board-cell ${rowType} goal-row`;
+            goalCell.style.width = `${goalRowWidth}px`;
+            goalCell.style.height = `${goalRowHeight}px`;
+            goalCell.style.display = 'flex';
+            goalCell.style.alignItems = 'center';
+            goalCell.style.justifyContent = 'center';
+            goalCell.style.border = 'none';
+            goalCell.style.cursor = 'pointer';
+            goalCell.style.pointerEvents = 'auto';
+            
+            // Aplicar estilos de meta
+            if (rowType === 'blue-goal') {
+                goalCell.style.backgroundImage = `
+                    repeating-conic-gradient(
+                        var(--goal-blue-primary) 0deg 90deg,
+                        var(--goal-blue-secondary) 90deg 180deg,
+                        var(--goal-blue-primary) 180deg 270deg,
+                        var(--goal-blue-secondary) 270deg 360deg
+                    )
+                `;
+                goalCell.style.backgroundSize = '16px 16px';
+            } else {
+                goalCell.style.backgroundImage = `
+                    repeating-conic-gradient(
+                        var(--goal-red-primary) 0deg 90deg,
+                        var(--goal-red-secondary) 90deg 180deg,
+                        var(--goal-red-primary) 180deg 270deg,
+                        var(--goal-red-secondary) 270deg 360deg
+                    )
+                `;
+                goalCell.style.backgroundSize = '16px 16px';
+            }
+            
+            // Event listeners desactivados - el tablero no es responsivo al cursor
+            // goalCell.addEventListener('mouseenter', () => highlightZone(row));
+            // goalCell.addEventListener('mouseleave', () => clearHighlight());
+            
+            boardRow.appendChild(goalCell);
+        } else {
+            // Crear filas normales
+            for (let col = 0; col < cols; col++) {
+                const cell = document.createElement('div');
+                cell.className = 'board-cell';
+                cell.style.width = `${cellSize}px`;
+                cell.style.height = `${cellSize}px`;
+                cell.style.display = 'flex';
+                cell.style.alignItems = 'center';
+                cell.style.justifyContent = 'center';
+                cell.style.cursor = 'default';
+                cell.style.pointerEvents = 'none';
+                cell.style.borderRight = '1px solid var(--board-grid-line)';
+                cell.style.borderBottom = '1px solid var(--board-grid-line)';
+                
+                // Determinar el tipo de celda
+                let cellType = 'neutral';
+                if (row === 1) {
+                    cellType = 'blue-start';
+                } else if (row === rows - 2) {
+                    cellType = 'red-start';
+                } else if (row === 7) {
+                    cellType = 'safe-zone'; // Toda la fila central (fila 7) es zona segura
+                }
+                
+                cell.classList.add(cellType);
+                
+                // Aplicar estilos según el tipo
+                if (cellType === 'neutral' || cellType === 'neutral2') {
+                    cell.style.background = 'var(--cell-normal)';
+                } else if (cellType === 'blue-start' || cellType === 'red-start') {
+                    cell.style.background = 'var(--cell-start)';
+                } else if (cellType === 'safe-zone') {
+                    cell.style.background = 'var(--cell-safe)';
+                    cell.style.position = 'relative';
+                    
+                    // Crear el indicador interno de zona segura
+                    const innerZone = document.createElement('div');
+                    innerZone.style.position = 'absolute';
+                    innerZone.style.top = '4px';
+                    innerZone.style.left = '4px';
+                    innerZone.style.right = '4px';
+                    innerZone.style.bottom = '4px';
+                    innerZone.style.background = 'var(--cell-safe-inner)';
+                    innerZone.style.borderRadius = '4px';
+                    innerZone.style.border = '2px solid var(--cell-safe-border)';
+                    innerZone.style.pointerEvents = 'none';
+                    
+                    cell.appendChild(innerZone);
+                }
+                
+                boardRow.appendChild(cell);
+            }
+        }
+        
+        previewBoard.appendChild(boardRow);
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}
+
+// Función para cerrar el tutorial interactivo
+function closeInteractiveTutorial() {
+    const interactiveTutorialScreen = document.getElementById('interactiveTutorialScreen');
+    if (interactiveTutorialScreen) {
+        interactiveTutorialScreen.classList.add('hidden');
+    }
+    
+    // Limpiar el estado del tutorial
+    currentTutorialStep = 1;
+    updateTutorialStep();
+    
+    // Mostrar el menú de selección de tutorial
+    const tutorialScreen = document.getElementById('tutorialScreen');
+    if (tutorialScreen) {
+        tutorialScreen.classList.remove('hidden');
+    }
+}
+
+// Función para inicializar las pestañas de puntuación
+function initializePuntuacionTabs() {
+    const tabs = document.querySelectorAll('#step4 .movement-tab');
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+
+    if (!puntuacionInfoElement) return;
+
+    puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.classList.contains('active')) {
+                tab.classList.remove('active');
+                puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center; background: none; border: none; padding: 0; margin: 0;">Selecciona una pestaña para obtener más información</p>';
+            } else {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const puntuacion = tab.getAttribute('data-movement');
+                showPuntuacionInfo(puntuacion);
+            }
+        });
+    });
+}
+
+// Función para mostrar información de puntuación
+function showPuntuacionInfo(puntuacion) {
+    const puntuacionInfoElement = document.getElementById('puntuacionInfo');
+    if (!puntuacionInfoElement) return;
+
+    const puntuacionData = getPuntuacionInfoByType(puntuacion);
+    if (puntuacionData) {
+        puntuacionInfoElement.innerHTML = puntuacionData.content;
+    } else {
+        puntuacionInfoElement.innerHTML = '<p style="color: #cccccc; font-style: italic; text-align: center;">Información no disponible</p>';
+    }
+}
+
+// Función para obtener información de puntuación por tipo
+function getPuntuacionInfoByType(puntuacion) {
+    const puntuacionData = {
+        meta: {
+            content: `
+                <h3>Puntuación por llegar a la meta: <span style="color: #FFD700;">2 puntos</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-meta.png" alt="Meta" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Cruzar el campo es arriesgado, pero es la mejor forma de obtener puntos para ganar la partida</p>
+                        <p>Evita que el rival llegue a la meta eliminando sus fichas</p>
+                    </div>
+                </div>
+            `
+        },
+        eliminacion: {
+            content: `
+                <h3>Puntuación por Eliminación: <span style="color: #FFD700;">1 punto</span></h3>
+                <div class="movement-layout">
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill2.png" alt="Eliminación 2" class="movement-image">
+                    </div>
+                    <div class="movement-image-container">
+                        <img src="icons/tutorial-puntos-kill1.png" alt="Eliminación 1" class="movement-image">
+                    </div>
+                    <div class="movement-description">
+                        <p>Elimina fichas del equipo contrario en tu campo</p>
+                        <p>Si consigues dejar al rival sin fichas en el tablero, automáticamente ganarás la partida</p>
+                    </div>
+                </div>
+            `
+        }
+    };
+    return puntuacionData[puntuacion] || null;
+}

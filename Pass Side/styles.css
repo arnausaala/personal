@@ -26,15 +26,20 @@ body {
 /* Pantalla de inicio */
 .start-screen {
     text-align: center;
-    animation: fadeIn 1s ease-in;
+    animation: fadeInSmooth 1.2s ease-out;
     position: relative;
     z-index: 10;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
 }
 
 .game-title h1 {
     font-size: 4rem;
     font-weight: 900;
-    margin-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
     background: linear-gradient(45deg, #00d4ff, #ff00ff, #ffff00);
     background-size: 300% 300%;
     -webkit-background-clip: text;
@@ -47,7 +52,7 @@ body {
 .subtitle {
     font-size: 1.2rem;
     color: #cccccc;
-    margin-bottom: 3rem;
+    margin-bottom: 2.5rem;
     font-weight: 400;
 }
 
@@ -593,6 +598,20 @@ body {
     gap: 1rem;
 }
 
+/* Ajustes específicos para el modo Marathon */
+.marathon-mode .game-board-container {
+    transform: translateY(-30px);
+}
+
+/* Contenedor de información del juego */
+.game-info-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
 /* Contador de turno discreto */
 .turn-counter {
     display: flex;
@@ -656,6 +675,34 @@ body {
     letter-spacing: 0.3px;
 }
 
+/* Panel de información del tablero */
+.board-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    opacity: 0.7;
+}
+
+.board-info-value {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    letter-spacing: 0.3px;
+}
+
+/* Estilos específicos para modo claro */
+.game-container.light-theme .board-info {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    opacity: 0.8;
+}
+
 /* Columnas de jugadores */
 .player-column {
     width: 220px;
@@ -708,38 +755,6 @@ body {
     text-align: center;
 }
 
-.board-options {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    margin-bottom: 1rem;
-}
-
-.board-option {
-    padding: 0.8rem 1.5rem;
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    color: #ffffff;
-    font-family: 'Orbitron', monospace;
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border-radius: 8px;
-}
-
-.board-option:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.4);
-    transform: translateY(-2px);
-}
-
-.board-option.selected {
-    background: linear-gradient(45deg, #00d4ff, #ff00ff);
-    border-color: #00d4ff;
-    color: #ffffff;
-    box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
-}
 
 /* Indicador de dificultad */
 .difficulty-indicator {
@@ -941,6 +956,99 @@ body {
     border: 3px solid var(--board-border);
     transition: all 0.3s ease;
     position: relative;
+    margin-top: var(--board-vertical-offset, 0);
+}
+
+/* Efectos de dificultad - Principiante (Verde) */
+.board.difficulty-beginner {
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(76, 175, 80, 0.3),
+        inset 0 0 20px rgba(76, 175, 80, 0.1);
+    border: 3px solid rgba(76, 175, 80, 0.6);
+}
+
+.board.difficulty-beginner::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, 
+        rgba(76, 175, 80, 0.8) 0%, 
+        rgba(76, 175, 80, 0.4) 25%, 
+        rgba(76, 175, 80, 0.6) 50%, 
+        rgba(76, 175, 80, 0.4) 75%, 
+        rgba(76, 175, 80, 0.8) 100%);
+    border-radius: 14px;
+    z-index: -1;
+    animation: difficultyGlow 3s ease-in-out infinite;
+}
+
+/* Efectos de dificultad - Intermedio (Amarillo) */
+.board.difficulty-intermediate {
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(255, 193, 7, 0.3),
+        inset 0 0 20px rgba(255, 193, 7, 0.1);
+    border: 3px solid rgba(255, 193, 7, 0.6);
+}
+
+.board.difficulty-intermediate::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, 
+        rgba(255, 193, 7, 0.8) 0%, 
+        rgba(255, 193, 7, 0.4) 25%, 
+        rgba(255, 193, 7, 0.6) 50%, 
+        rgba(255, 193, 7, 0.4) 75%, 
+        rgba(255, 193, 7, 0.8) 100%);
+    border-radius: 14px;
+    z-index: -1;
+    animation: difficultyGlow 3s ease-in-out infinite;
+}
+
+/* Efectos de dificultad - Experto (Rojo) */
+.board.difficulty-expert {
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(244, 67, 54, 0.3),
+        inset 0 0 20px rgba(244, 67, 54, 0.1);
+    border: 3px solid rgba(244, 67, 54, 0.6);
+}
+
+.board.difficulty-expert::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, 
+        rgba(244, 67, 54, 0.8) 0%, 
+        rgba(244, 67, 54, 0.4) 25%, 
+        rgba(244, 67, 54, 0.6) 50%, 
+        rgba(244, 67, 54, 0.4) 75%, 
+        rgba(244, 67, 54, 0.8) 100%);
+    border-radius: 14px;
+    z-index: -1;
+    animation: difficultyGlow 3s ease-in-out infinite;
+}
+
+@keyframes difficultyGlow {
+    0%, 100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.02);
+    }
 }
 
 .board-row {
@@ -1835,14 +1943,14 @@ body {
     color: #7777ff;
 }
 
-/* Modal de selección de dificultad */
-.difficulty-modal {
+/* Modal de configuración de partida */
+.game-setup-modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.9);
     z-index: 2000;
     display: flex;
     align-items: center;
@@ -1850,17 +1958,360 @@ body {
     animation: modalFadeIn 0.3s ease-out;
 }
 
-.difficulty-modal-content {
+
+/* Columnas del setup */
+.setup-column {
+    flex: 1 1 33.333%;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    min-width: 0;
+}
+
+.setup-column:last-child {
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.setup-column:not(:last-child) {
+    border-right: 2px solid rgba(255, 255, 255, 0.2);
+    margin-right: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.setup-container {
+    display: flex;
+    width: 100%;
+    height: auto;
+    max-width: 1400px;
+    gap: 0;
+    padding: 1.5rem;
+    box-sizing: border-box;
     background: var(--game-bg-primary);
     border: 3px solid var(--board-border);
     border-radius: 15px;
-    padding: 2rem;
-    max-width: 600px;
-    width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    animation: modalSlideIn 0.4s ease-out;
+    justify-content: space-between;
+}
+
+.column-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.column-header h2 {
+    color: #ffffff;
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin: 0;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+/* Opciones de tablero */
+.board-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    flex: 1;
+    align-items: stretch;
+}
+
+.board-option {
+    padding: 1.2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    justify-content: center;
+}
+
+.board-icon {
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+}
+
+.board-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.board-option:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+.board-option.selected {
+    background: rgba(0, 212, 255, 0.5);
+    border-color: #00d4ff;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+.option-title {
+    color: #ffffff;
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin-bottom: 0.3rem;
+}
+
+.option-subtitle {
+    color: #cccccc;
+    font-size: 1rem;
+    margin-bottom: 0.3rem;
+}
+
+.option-description {
+    color: #aaaaaa;
+    font-size: 1rem;
+}
+
+/* Opciones de dificultad */
+.difficulty-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    flex: 1;
+    align-items: stretch;
+}
+
+.difficulty-option {
+    padding: 1.2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    justify-content: center;
+}
+
+.difficulty-option:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+.difficulty-option.selected {
+    background: rgba(0, 212, 255, 0.5);
+    border-color: #00d4ff;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+.difficulty-icon {
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+}
+
+.difficulty-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+
+/* Contenedor del tablero de previsualización */
+.preview-board-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    margin-bottom: 0;
+    margin-top: 0;
+    height: 250px;
+    padding: 0 2rem;
+}
+
+/* Tablero de previsualización general (para otros modos) */
+.preview-board-container .board {
+    transform: scale(0.7);
+    transform-origin: top center;
+    max-width: 100%;
+    width: auto;
+    pointer-events: none; /* Desactivar todas las interacciones */
+}
+
+/* Tablero de previsualización Bala específico */
+.preview-board-container .board.bala-preview {
+    transform: scale(0.75) translateY(90px); /* Escala para Bala + offset para alinear fila central */
+    transform-origin: top center;
+    max-width: 100%;
+    width: auto;
+    pointer-events: none; /* Desactivar todas las interacciones */
+}
+
+/* Tablero de previsualización Clásico específico */
+.preview-board-container .board.classic-preview {
+    transform: scale(0.60) translateY(50px); /* Escala para Clásico + offset para alinear fila central */
+    transform-origin: top center;
+    max-width: 100%;
+    width: auto;
+    pointer-events: none; /* Desactivar todas las interacciones */
+}
+
+/* Tablero de previsualización Marathon específico */
+.preview-board-container .board.marathon-preview {
+    transform: scale(0.50); /* Escala aún más reducida para Marathon */
+    transform-origin: top center;
+    max-width: 100%;
+    width: auto;
+    pointer-events: none; /* Desactivar todas las interacciones */
+}
+
+/* Desactivar efectos hover y cursor en tableros de previsualización */
+.preview-board-container .board .board-cell {
+    cursor: default !important;
+    pointer-events: none !important;
+}
+
+.preview-board-container .board .board-cell:hover {
+    background-color: transparent !important;
+    transform: none !important;
+    z-index: auto !important;
+}
+
+.preview-board-container .board .piece {
+    cursor: default !important;
+    pointer-events: none !important;
+}
+
+.preview-board-container .board .piece:hover {
+    transform: none !important;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Información de la partida */
+.game-info-preview {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    margin-top: auto;
+    margin-bottom: 1.5rem;
+    font-size: 0.85rem;
+    color: #cccccc;
+    text-align: center;
+    width: 100%;
+    padding: 0 1rem;
+}
+
+.info-item {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    min-width: 80px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums; /* Números de ancho fijo */
+}
+
+.info-item#piecesInfo {
+    min-width: 90px; /* Para "3 fichas" */
+}
+
+.info-item#formationsInfo {
+    min-width: 140px; /* Para números más grandes como "165 formaciones" */
+}
+
+.info-item#pointsInfo {
+    min-width: 90px; /* Para "3 puntos" */
+}
+
+.info-separator {
+    display: none;
+}
+
+/* Botones de acción */
+.action-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.action-buttons .game-btn {
+    flex: 1;
+    padding: 1.2rem;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    min-width: 120px;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-buttons .game-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Responsive para móviles */
+@media (max-width: 768px) {
+    .setup-container {
+        flex-direction: column;
+        padding: 1rem;
+    }
+    
+    .setup-column {
+        padding: 1rem;
+    }
+    
+    .setup-column:not(:last-child) {
+        border-right: none;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        margin-right: 0;
+        margin-bottom: 1rem;
+        padding-right: 1rem;
+        padding-bottom: 1rem;
+    }
+    
+    .column-header h2 {
+        font-size: 1.4rem;
+    }
+    
+    .board-option, .difficulty-option {
+        padding: 1rem;
+    }
+    
+    .board-icon {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 0.8rem;
+    }
+    
+    .option-title {
+        font-size: 1.2rem;
+    }
+    
+    
+    .difficulty-icon {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .action-buttons .game-btn {
+        padding: 0.8rem;
+        font-size: 1rem;
+    }
 }
 
 @keyframes modalSlideIn {
@@ -1892,55 +2343,7 @@ body {
     margin: 0;
 }
 
-.difficulty-options {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 2rem;
-}
 
-.difficulty-option {
-    display: flex;
-    align-items: center;
-    padding: 1.5rem;
-    background: var(--game-bg-secondary);
-    border: 2px solid var(--board-border);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.difficulty-option:hover {
-    border-color: #00d4ff;
-    background: linear-gradient(135deg, var(--game-bg-secondary) 0%, rgba(0, 212, 255, 0.1) 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 212, 255, 0.2);
-}
-
-.difficulty-option.selected {
-    border-color: #00d4ff;
-    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(0, 212, 255, 0.1) 100%);
-    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
-}
-
-.difficulty-icon {
-    font-size: 2.5rem;
-    margin-right: 1.5rem;
-    flex-shrink: 0;
-}
-
-.difficulty-info {
-    flex: 1;
-}
-
-.difficulty-info h3 {
-    font-size: 1.4rem;
-    color: var(--game-text-primary);
-    margin: 0 0 0.5rem 0;
-    font-weight: 700;
-}
 
 .difficulty-info p {
     font-size: 0.95rem;
@@ -2031,6 +2434,17 @@ body {
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInSmooth {
+    0% { 
+        opacity: 0; 
+        transform: translateY(30px); 
+    }
+    100% { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
 }
 
 /* Responsive */
@@ -2290,6 +2704,12 @@ body {
 .blue-piece {
     background: linear-gradient(135deg, #3742fa, #2f3cdb);
     box-shadow: 0 1px 3px rgba(55, 66, 250, 0.3);
+}
+
+/* Fichas azules en modal del modo oscuro - azul más claro */
+.dark-theme .formation-side-panel .blue-piece {
+    background: linear-gradient(135deg, #00d4ff, #0099cc) !important;
+    box-shadow: 0 1px 3px rgba(0, 212, 255, 0.3) !important;
 }
 
 /* Espacios vacíos - Modo oscuro */
@@ -2612,28 +3032,28 @@ body {
 
 /* Modo oscuro */
 .dark-theme .formation-side-panel {
-    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    background: linear-gradient(135deg, #1a1a2e, #16213e) !important;
 }
 
 .dark-theme .formation-panel-left {
-    border-right: 3px solid #00d4ff;
+    border-right: 3px solid #00d4ff !important;
 }
 
 .dark-theme .formation-panel-right {
-    border-left: 3px solid #00d4ff;
+    border-left: 3px solid #00d4ff !important;
 }
 
 /* Modo claro */
 .light-theme .formation-side-panel {
-    background: linear-gradient(135deg, #ffffff, #f8f9fa);
+    background: linear-gradient(135deg, #ffffff, #f8f9fa) !important;
 }
 
 .light-theme .formation-panel-left {
-    border-right: 3px solid #007bff;
+    border-right: 3px solid #007bff !important;
 }
 
 .light-theme .formation-panel-right {
-    border-left: 3px solid #007bff;
+    border-left: 3px solid #007bff !important;
 }
 
 .formation-panel-header {
@@ -2649,12 +3069,12 @@ body {
 
 /* Modo oscuro */
 .dark-theme .formation-panel-header {
-    border-bottom-color: #333;
-    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-bottom-color: #333 !important;
+    background: linear-gradient(135deg, #1a1a2e, #16213e) !important;
 }
 
 .dark-theme .formation-panel-header h3 {
-    color: #00d4ff;
+    color: #00d4ff !important;
     margin: 0;
     font-size: 1.3rem;
     font-weight: bold;
@@ -2662,15 +3082,20 @@ body {
 
 /* Modo claro */
 .light-theme .formation-panel-header {
-    border-bottom-color: #dee2e6;
-    background: linear-gradient(135deg, #ffffff, #f8f9fa);
+    border-bottom-color: #dee2e6 !important;
+    background: linear-gradient(135deg, #ffffff, #f8f9fa) !important;
 }
 
 .light-theme .formation-panel-header h3 {
-    color: #007bff;
+    color: #007bff !important;
     margin: 0;
     font-size: 1.3rem;
     font-weight: bold;
+}
+
+/* Título del rival - rojo en ambos modos */
+.rival-title {
+    color: #dc3545 !important;
 }
 
 .formation-panel-close {
@@ -2690,22 +3115,22 @@ body {
 
 /* Modo oscuro */
 .dark-theme .formation-panel-close {
-    color: #fff;
+    color: #fff !important;
 }
 
 .dark-theme .formation-panel-close:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #ff4757;
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #ff6b6b !important;
 }
 
 /* Modo claro */
 .light-theme .formation-panel-close {
-    color: #212529;
+    color: #212529 !important;
 }
 
 .light-theme .formation-panel-close:hover {
-    background: rgba(0, 0, 0, 0.1);
-    color: #dc3545;
+    background: rgba(0, 0, 0, 0.1) !important;
+    color: #dc3545 !important;
 }
 
 .formation-panel-body {
@@ -2721,12 +3146,12 @@ body {
 
 /* Modo oscuro */
 .dark-theme .formation-panel-name {
-    color: #fff;
+    color: #fff !important;
 }
 
 /* Modo claro */
 .light-theme .formation-panel-name {
-    color: #212529;
+    color: #212529 !important;
 }
 
 .formation-panel-pattern {
@@ -2756,12 +3181,12 @@ body {
 
 /* Modo oscuro */
 .dark-theme .formation-panel-probability {
-    color: #00ff88;
+    color: #4ade80 !important;
 }
 
 /* Modo claro */
 .light-theme .formation-panel-probability {
-    color: #28a745;
+    color: #28a745 !important;
 }
 
 .formation-panel-description {
@@ -2773,12 +3198,12 @@ body {
 
 /* Modo oscuro */
 .dark-theme .formation-panel-description {
-    color: #ccc;
+    color: #e0e0e0 !important;
 }
 
 /* Modo claro */
 .light-theme .formation-panel-description {
-    color: #495057;
+    color: #495057 !important;
 }
 
 .formation-panel-advantages h4 {
@@ -2789,12 +3214,12 @@ body {
 
 /* Modo oscuro */
 .dark-theme .formation-panel-advantages h4 {
-    color: #00d4ff;
+    color: #00d4ff !important;
 }
 
 /* Modo claro */
 .light-theme .formation-panel-advantages h4 {
-    color: #007bff;
+    color: #007bff !important;
 }
 
 .formation-panel-advantages ul {
@@ -2811,12 +3236,12 @@ body {
 
 /* Modo oscuro */
 .dark-theme .formation-panel-advantages li {
-    color: #fff;
+    color: #fff !important;
 }
 
 /* Modo claro */
 .light-theme .formation-panel-advantages li {
-    color: #495057;
+    color: #495057 !important;
 }
 
 .formation-panel-disadvantages {
@@ -2831,12 +3256,12 @@ body {
 
 /* Modo oscuro */
 .dark-theme .formation-panel-disadvantages h4 {
-    color: #ff6b6b;
+    color: #ff4757 !important;
 }
 
 /* Modo claro */
 .light-theme .formation-panel-disadvantages h4 {
-    color: #dc3545;
+    color: #ff4757 !important;
 }
 
 .formation-panel-disadvantages ul {
@@ -2853,12 +3278,12 @@ body {
 
 /* Modo oscuro */
 .dark-theme .formation-panel-disadvantages li {
-    color: #ffaaaa;
+    color: #fff !important;
 }
 
 /* Modo claro */
 .light-theme .formation-panel-disadvantages li {
-    color: #6c757d;
+    color: #495057 !important;
 }
 
 /* Responsive para móviles */
@@ -2911,5 +3336,1405 @@ body {
     
     .formation-panel-right {
         right: 10px;
+    }
+}
+
+/* Estilos para Tutorial - Consistente con modal de selección */
+.tutorial-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+.tutorial-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: auto;
+    max-width: 1000px;
+    position: relative;
+    gap: 0;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    background: var(--game-bg-primary);
+    border: 3px solid var(--board-border);
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    text-align: center;
+}
+
+.tutorial-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    margin-top: 1.5rem;
+}
+
+.tutorial-header h1 {
+    color: #ffffff;
+    font-size: 2.2rem;
+    font-weight: bold;
+    margin: 0 0 2rem 0;
+}
+
+/* Estilo específico para el título TABLERO (márgenes reducidos) */
+.tutorial-header h1[data-step="2"] {
+    margin: 0 0 2rem 0;
+}
+
+.tutorial-subtitle {
+    font-size: 1.1rem;
+    color: #cccccc;
+    margin-bottom: 0;
+    font-weight: 400;
+}
+
+.tutorial-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    max-width: 550px;
+    align-self: center;
+}
+
+.tutorial-option {
+    padding: 1.2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.tutorial-option:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+.tutorial-option:hover .option-icon img {
+    filter: brightness(1.1) contrast(1.1);
+}
+
+.option-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.8rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.option-icon img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    filter: brightness(1) contrast(1);
+    transition: filter 0.3s ease;
+}
+
+.tutorial-option h3 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #ffffff;
+}
+
+.tutorial-option p {
+    font-size: 0.95rem;
+    color: #cccccc;
+    line-height: 1.4;
+}
+
+
+
+.tutorial-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.tutorial-footer .game-btn {
+    padding: 1.2rem;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    min-width: 120px;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+}
+
+/* Responsive para tutorial */
+@media (max-width: 768px) {
+    .tutorial-container {
+        padding: 1rem;
+        max-width: 90%;
+    }
+    
+    .tutorial-header h1 {
+        font-size: 1.8rem;
+    }
+    
+    .tutorial-option {
+        padding: 1.5rem;
+    }
+    
+    .option-icon {
+        font-size: 2rem;
+    }
+    
+    .tutorial-option h3 {
+        font-size: 1.1rem;
+    }
+    
+    .tutorial-option p {
+        font-size: 0.9rem;
+    }
+    
+    .tutorial-footer .game-btn {
+        padding: 0.8rem;
+        font-size: 1rem;
+    }
+}
+
+/* Estilos para tema claro */
+.light-theme .tutorial-container {
+    background: var(--game-bg-primary);
+    border-color: var(--board-border);
+}
+
+.light-theme .tutorial-header h1 {
+    color: var(--game-text-primary);
+}
+
+.light-theme .tutorial-subtitle {
+    color: #666666;
+}
+
+.light-theme .tutorial-option {
+    background: rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+.light-theme .tutorial-option:hover {
+    background: rgba(0, 0, 0, 0.15);
+    border-color: rgba(0, 0, 0, 0.4);
+}
+
+.light-theme .tutorial-option h3 {
+    color: var(--game-text-primary);
+}
+
+.light-theme .tutorial-option p {
+    color: #666666;
+}
+
+/* Estilos para Tutorial Interactivo */
+.interactive-tutorial-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+.interactive-tutorial-screen .tutorial-container {
+    max-width: 1400px;
+    padding: 1.5rem;
+    height: 85vh;
+    min-height: 650px;
+    max-height: 900px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* Estilos para el tablero del tutorial */
+.tutorial-board-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.tutorial-board-container .mini-board {
+    transform: scale(0.8);
+    transform-origin: center;
+}
+
+.tutorial-board-container .board.tutorial-classic {
+    pointer-events: none;
+}
+
+.tutorial-board-container .board.tutorial-classic .board-cell {
+    cursor: default !important;
+    pointer-events: none !important;
+}
+
+.tutorial-board-container .board.tutorial-classic .board-cell:hover {
+    background-color: transparent !important;
+    transform: none !important;
+    z-index: auto !important;
+}
+
+/* Estilos específicos para el tablero clásico en el tutorial */
+#tutorialBoard.board.tutorial-classic {
+    transform: scale(0.7);
+    transform-origin: center;
+    pointer-events: none;
+}
+
+#tutorialBoard.board.tutorial-classic .board-row {
+    box-sizing: border-box !important;
+}
+
+#tutorialBoard.board.tutorial-classic .board-cell {
+    cursor: default !important;
+    pointer-events: none !important;
+}
+
+/* Hover deshabilitado - tablero no clicable */
+
+/* Hover eliminado - solo se usa el estilo de pestaña */
+
+/* Resaltado específico para metas - SOLO colores y brillo, SIN contornos */
+#tutorialBoard.board.tutorial-classic .board-row.meta-highlighted .board-cell.blue-goal,
+#tutorialBoard.board.tutorial-classic .board-row.meta-highlighted .board-cell.red-goal {
+    filter: brightness(1.4) saturate(1.3) !important;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.4) !important;
+    background-color: transparent !important;
+    /* No tocar dimensiones ni posicionamiento */
+}
+
+/* Anular TODOS los contornos de las filas de meta resaltadas */
+#tutorialBoard.board.tutorial-classic .board-row.meta-highlighted {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    outline: none !important;
+    /* No tocar dimensiones ni posicionamiento */
+}
+
+@keyframes metaReflection {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+
+/* Estilos para el resaltado de zonas en el tutorial */
+#tutorialBoard.board.tutorial-classic .board-row.zone-highlighted {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+    z-index: 10 !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+}
+
+#tutorialBoard.board.tutorial-classic .board-row.zone-highlighted .board-cell {
+    background-color: rgba(40, 167, 69, 0.15) !important;
+    box-shadow: none !important;
+    transform: none !important;
+    border-right: 2px solid var(--board-grid-line) !important;
+    border-bottom: 2px solid var(--board-grid-line) !important;
+    width: var(--cell-size) !important;
+    height: var(--cell-size) !important;
+    min-width: unset !important;
+    min-height: unset !important;
+    max-width: unset !important;
+    max-height: unset !important;
+    flex: none !important;
+    box-sizing: border-box !important;
+    z-index: 5 !important;
+}
+
+#tutorialBoard.board.tutorial-classic .board-row.zone-highlighted .board-cell:last-child {
+    border-right: none !important;
+}
+
+#tutorialBoard.board.tutorial-classic .board-row.zone-highlighted:last-child .board-cell {
+    border-bottom: none !important;
+}
+
+
+#tutorialBoard.board.tutorial-classic .board-row.zone-highlighted:hover {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+    width: 100% !important;
+    height: auto !important;
+}
+
+/* Contorno para zonas individuales */
+#tutorialBoard.board.tutorial-classic .board-row.zone-highlighted:not(.field-zone) {
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    outline: 1px solid rgba(40, 167, 69, 0.8) !important;
+    outline-offset: -1px !important;
+    border-radius: 4px !important;
+}
+
+/* Contorno para campos de equipo (sin divisiones internas) */
+#tutorialBoard.board.tutorial-classic .board-row.zone-highlighted.field-zone {
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+}
+
+#tutorialBoard.board.tutorial-classic .board-row.zone-highlighted.field-zone:first-child {
+    border-top: 1px solid rgba(40, 167, 69, 0.8) !important;
+    border-radius: 4px 4px 0 0 !important;
+    outline: 1px solid rgba(40, 167, 69, 0.8) !important;
+    outline-offset: -1px !important;
+}
+
+#tutorialBoard.board.tutorial-classic .board-row.zone-highlighted.field-zone:not(:first-child):not(:last-child) {
+    outline: 1px solid rgba(40, 167, 69, 0.8) !important;
+    outline-offset: -1px !important;
+}
+
+#tutorialBoard.board.tutorial-classic .board-row.zone-highlighted.field-zone:last-child {
+    border-bottom: 1px solid rgba(40, 167, 69, 0.8) !important;
+    border-radius: 0 0 4px 4px !important;
+    outline: 1px solid rgba(40, 167, 69, 0.8) !important;
+    outline-offset: -1px !important;
+}
+
+.tutorial-content {
+    display: flex;
+    gap: 4rem;
+    margin-bottom: 2rem;
+    align-items: center;
+    justify-content: center;
+    min-height: 450px;
+    max-height: 550px;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    flex: 1;
+    overflow: visible;
+}
+
+/* Estilos específicos para el paso 2 (tablero) */
+.tutorial-content:not(.text-only) {
+    gap: 2rem;
+    justify-content: center;
+    align-items: center;
+}
+
+.tutorial-board-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 550px;
+    max-height: 750px;
+    padding-top: 40px;
+    padding-bottom: 20px;
+    margin-left: -4rem;
+}
+
+/* Estilos específicos para el paso 2 (tablero) */
+.tutorial-content:not(.text-only) .tutorial-board-container {
+    flex: 0 0 35%; /* Tablero más pequeño, fijo */
+    order: 1; /* Tablero a la izquierda */
+    margin-right: 2rem; /* Espacio entre tablero y explicación */
+}
+
+/* Ocultar el tablero por defecto */
+#tutorialBoard {
+    display: none;
+}
+
+.tutorial-content:not(.text-only) .tutorial-explanation {
+    flex: 1;
+    order: 2; /* Explicación a la derecha */
+    align-items: flex-start;
+    padding-left: 0; /* Sin padding adicional */
+    margin-left: -4rem;
+    max-width: none; /* Sin limitación de anchura */
+    width: 100%; /* Ocupar todo el ancho disponible */
+}
+
+/* Panel de información con pestañas */
+.tutorial-info-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 450px;
+    max-height: 550px;
+    width: 100%;
+    margin: 0 1rem; /* Margen lateral para separación del borde */
+}
+
+.tutorial-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.tutorial-tab {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    color: #cccccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.tutorial-tab:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+}
+
+.tutorial-tab.active {
+    background: rgba(40, 167, 69, 0.2);
+    border-color: rgba(40, 167, 69, 0.6);
+    color: #ffffff;
+}
+
+.tab-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* Iconos específicos para las pestañas del tutorial */
+.tutorial-meta {
+    background-image: url('icons/tutorial-meta.png');
+}
+
+.tutorial-puntos-eliminar {
+    background-image: url('icons/tutorial-puntos-eliminar.png');
+}
+
+/* Reducir tamaño de imágenes en la pantalla de puntuación */
+#step4 .movement-image-container {
+    width: 60%;
+    max-width: 210px; /* 60% de 350px */
+}
+
+#step4 .movement-image-container:has(img[alt*="Meta"]) {
+    width: 90%;
+    max-width: 315px; /* 90% de 350px */
+}
+
+.tutorial-aparicion {
+    background-image: url('icons/tutorial-aparicion.png');
+}
+
+.tutorial-campo {
+    background-image: url('icons/tutorial-campo.png');
+}
+
+.tutorial-segura {
+    background-image: url('icons/tutorial-segura.png');
+}
+
+.tutorial-movimientos {
+    background-image: url('icons/tutorial-movimientos.png');
+}
+
+/* Iconos para navegación del tutorial */
+.tutorial-menu-objetivo {
+    background-image: url('icons/tutorial-menu-objetivo.png');
+}
+
+.tutorial-menu-tablero {
+    background-image: url('icons/tutorial-menu-tablero.png');
+}
+
+.tutorial-menu-movimientos {
+    background-image: url('icons/tutorial-menu-movimientos.png');
+}
+
+.tutorial-menu-puntuacion {
+    background-image: url('icons/tutorial-menu-puntuacion.png');
+}
+
+/* Iconos para pestañas de movimientos */
+.tutorial-salida {
+    background-image: url('icons/tutorial-aparicion.png');
+}
+
+.tutorial-defensivo {
+    background-image: url('icons/tutorial-campo-propio.png');
+}
+
+.tutorial-ofensivo {
+    background-image: url('icons/tutorial-ataque.png');
+}
+
+/* Modal de movimientos - Completamente independiente */
+#step3 {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+/* Cuando estamos en step3, hacer que ocupe todo el ancho */
+.tutorial-content.movements-only {
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+.tutorial-content.movements-only .tutorial-board-container {
+    display: none !important;
+}
+
+.tutorial-content.movements-only .tutorial-explanation {
+    width: 100% !important;
+    margin-left: 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 1 !important;
+}
+
+.tutorial-content:not(.text-only) .tutorial-explanation #step3 {
+    margin-left: 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    height: 100% !important;
+}
+
+.tutorial-movements-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 450px;
+    max-height: 550px;
+    width: 100%;
+    margin: 0 1rem; /* Margen lateral para separación del borde */
+    justify-content: center;
+    align-items: center;
+}
+
+.movement-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    width: 100%;
+    padding: 0;
+}
+
+.movement-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.movement-tab:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    transform: translateY(-2px);
+}
+
+.movement-tab.active {
+    background: rgba(40, 167, 69, 0.2);
+    border-color: rgba(40, 167, 69, 0.6);
+    color: #ffffff;
+}
+
+.movement-tab .tab-icon {
+    width: 24px;
+    height: 24px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    flex-shrink: 0;
+}
+
+.movement-tab .tab-text {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.movement-content-area {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.5rem 1rem 1rem 1rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-height: 380px;
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    box-sizing: border-box;
+    margin: 0 auto;
+    max-width: 1200px;
+}
+
+.movement-info {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    max-width: 1000px;
+    background: none;
+    padding: 1rem;
+    border-radius: 8px;
+    border: none;
+    margin: 0 auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+}
+
+.movement-info h3 {
+    color: #ffffff;
+    font-size: 1.4rem;
+    margin-bottom: 2rem;
+    margin-top: 0.5rem;
+    text-align: center;
+    font-weight: 600;
+    padding: 0.75rem 0;
+    position: relative;
+    z-index: 3;
+}
+
+.movement-info p {
+    color: #e0e0e0;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+/* Layout para movimientos */
+.movement-layout {
+    display: flex;
+    gap: 3rem;
+    flex: 1;
+    align-items: center;
+    width: 100%;
+    position: relative;
+    z-index: 2;
+    justify-content: center;
+}
+
+.movement-image-container {
+    flex: 0 0 auto;
+    width: 350px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.movement-image {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.movement-image-container:has(img[alt*="Meta"]) {
+    width: 227px;
+}
+
+.movement-description {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2rem;
+    border-radius: 8px;
+}
+
+.movement-description p {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: #ffffff;
+    margin: 0 0 2.5rem 0;
+    text-align: center;
+    font-weight: 500;
+}
+
+.movement-description p:last-child {
+    margin-bottom: 0;
+}
+
+.movement-description strong {
+    color: #ffffff;
+    font-weight: 700;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+/* Responsive para movimientos */
+@media (max-width: 768px) {
+    .movement-layout {
+        gap: 1.5rem;
+    }
+    
+    .movement-image-container {
+        width: 210px;
+    }
+    
+    .movement-image-container:has(img[alt*="Meta"]) {
+        width: 136px;
+    }
+    
+    .movement-description p {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .movement-layout {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .movement-image-container {
+        width: 100%;
+        max-width: 175px;
+        margin: 0 auto;
+    }
+    
+    .movement-image-container:has(img[alt*="Meta"]) {
+        max-width: 114px;
+    }
+    
+    .movement-description p {
+        font-size: 0.9rem;
+        text-align: center;
+    }
+}
+
+
+
+
+
+
+/* Navegación del tutorial */
+.tutorial-nav-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.tutorial-nav-steps {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.tutorial-step-btn {
+    background: transparent;
+    border: none;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+}
+
+.tutorial-step-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
+}
+
+.tutorial-step-btn:hover .step-icon {
+    filter: brightness(1.2);
+}
+
+.tutorial-step-btn.active {
+    background: transparent;
+    transform: scale(1.1);
+}
+
+.tutorial-step-btn.active .step-icon {
+    filter: brightness(2.2) saturate(2.0) hue-rotate(60deg) !important;
+    transform: none !important;
+}
+
+/* Asegurar que el efecto se aplique con máxima especificidad */
+.tutorial-navigation .tutorial-nav-container .tutorial-nav-steps .tutorial-step-btn.active .step-icon {
+    filter: brightness(2.2) saturate(2.0) hue-rotate(60deg) !important;
+    transform: none !important;
+}
+
+/* Forzar el efecto con selector más específico */
+#interactiveTutorialModal .tutorial-navigation .tutorial-step-btn.active .step-icon {
+    filter: brightness(2.2) saturate(2.0) hue-rotate(60deg) !important;
+    transform: none !important;
+}
+
+.step-icon {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    transition: all 0.3s ease;
+}
+
+/* Texto eliminado - solo iconos */
+
+.tutorial-nav-btn {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem;
+    color: #cccccc;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    height: 48px;
+}
+
+.tutorial-nav-btn:hover:not(:disabled) {
+    background: transparent;
+    border: none;
+    color: #1976d2;
+}
+
+.tutorial-nav-btn:hover:not(:disabled) .nav-icon {
+    filter: brightness(1.2);
+}
+
+.tutorial-nav-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.nav-arrow {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #1976d2;
+}
+
+/* Icono de salir tutorial */
+.nav-icon {
+    width: 24px;
+    height: 24px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.tutorial-menu-salir {
+    background-image: url('icons/tutorial-menu-salir.png');
+}
+
+/* Iconos para los títulos de las explicaciones */
+.zone-title-icon {
+    width: 28px;
+    height: 28px;
+    display: inline-block;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* Iconos para ejemplos en las explicaciones */
+.example-icon {
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    flex-shrink: 0;
+}
+
+/* Iconos específicos para ejemplos */
+.tutorial-balanza {
+    background-image: url('icons/tutorial-balanza.png');
+}
+
+.icon-team-blue {
+    background-image: url('icons/equipo-azul.png');
+}
+
+.icon-team-red {
+    background-image: url('icons/equipo-rojo.png');
+}
+
+/* Team selection buttons */
+.team-selection {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.team-buttons {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    align-items: stretch;
+}
+
+.team-field {
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex: 1;
+    max-width: 250px;
+    min-height: 120px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.team-field:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.team-field.active {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: #4A90E2; /* Azul para equipo azul activo */
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.2);
+}
+
+.team-field[data-team="red"].active {
+    border-color: #E74C3C; /* Rojo para equipo rojo activo */
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.2);
+}
+
+.team-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.team-name {
+    color: #ffffff;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.team-description {
+    font-size: 0.8rem;
+    font-style: normal;
+    color: #ffffff;
+    margin-top: 0.5rem;
+}
+
+.blue-text {
+    color: #4A90E2;
+}
+
+.red-text {
+    color: #E74C3C;
+}
+
+.team-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.tab-text {
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tutorial-content-area {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-height: 380px;
+    padding-top: 1.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.zone-info h3 {
+    color: #ffffff;
+    font-size: 1.4rem;
+    margin-bottom: 2rem;
+    margin-top: 0.5rem;
+    text-align: center;
+    font-weight: 600;
+    padding: 0.75rem 0;
+}
+
+.zone-info {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+}
+
+.zone-info p {
+    color: #e0e0e0;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.zone-examples {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.example-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    color: #cccccc;
+}
+
+.example-icon {
+    font-size: 1.1rem;
+    width: 1.5rem;
+    text-align: center;
+}
+
+.mini-board {
+    background: var(--board-bg);
+    border: 3px solid var(--board-border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.tutorial-explanation {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    position: relative;
+    min-height: 450px;
+    max-height: 550px;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* Estilos específicos para el paso 2 (tablero) - ya definido arriba */
+
+/* Cuando solo hay texto (paso 1), ocupar todo el ancho */
+.tutorial-content.text-only .tutorial-board-container {
+    display: none;
+}
+
+.tutorial-content.text-only .tutorial-explanation {
+    flex: none;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+/* Centrar verticalmente el texto en la pantalla de objetivo */
+.tutorial-content.text-only {
+    min-height: 450px;
+    max-height: 550px;
+    align-items: center;
+    justify-content: center;
+    display: flex !important;
+}
+
+/* Asegurar que el contenido se centre inmediatamente */
+.tutorial-content.text-only .simple-text-content {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    height: 100%;
+    width: 100%;
+}
+
+/* Forzar el centrado desde el inicio - estado por defecto */
+.tutorial-content {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-top: -3.5rem; /* Compensar el espacio del header para todas las pantallas del tutorial */
+}
+
+/* Estado inicial del contenido de texto */
+.simple-text-content {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    height: 100%;
+    width: 100%;
+}
+
+.explanation-step {
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    opacity: 0;
+    transform: translateX(50px);
+    transition: all 0.5s ease;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    visibility: hidden;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.explanation-step.active {
+    opacity: 1;
+    transform: translateX(0);
+    border: none;
+    background: transparent;
+    visibility: visible;
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.explanation-step h3 {
+    color: #ffffff;
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+}
+
+.explanation-step p {
+    color: #cccccc;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+/* Estilos para contenido de texto simple */
+.simple-text-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    max-width: 1000px;
+    width: 100%;
+    padding: 0 2rem;
+}
+
+/* Estilos específicos para el paso 2 (tablero) */
+.tutorial-content:not(.text-only) .simple-text-content {
+    align-items: flex-start;
+    text-align: left;
+    max-width: none;
+    padding: 0;
+}
+
+.simple-text-content p {
+    color: #e0e0e0;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    text-align: center;
+    margin: 0;
+}
+
+/* Estilos para la página "Próximamente" */
+.coming-soon-details {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.coming-soon-item {
+    padding: 1rem;
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 8px;
+    color: #ffc107;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    transition: all 0.3s ease;
+    opacity: 0.8;
+}
+
+.coming-soon-item:hover {
+    background: rgba(255, 193, 7, 0.15);
+    border-color: rgba(255, 193, 7, 0.5);
+    transform: translateX(5px);
+    opacity: 1;
+}
+
+.coming-soon-item strong {
+    color: #ffc107;
+    display: block;
+    margin-bottom: 0.3rem;
+    font-weight: 600;
+}
+
+.tutorial-navigation {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 1rem;
+    flex-shrink: 0;
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+
+.tutorial-navigation .game-btn {
+    padding: 1rem 1.5rem;
+    font-size: 0.9rem;
+    min-width: 120px;
+}
+
+.tutorial-navigation .game-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Responsive para tutorial interactivo */
+@media (max-width: 768px) {
+    .tutorial-content {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .tutorial-board-container {
+        order: 2;
+    }
+    
+    .tutorial-explanation {
+        order: 1;
+    }
+    
+    .tutorial-navigation {
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+    
+    .tutorial-navigation .game-btn {
+        width: 100%;
+        min-width: auto;
     }
 }
