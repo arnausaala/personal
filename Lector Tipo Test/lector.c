@@ -1,7 +1,7 @@
 #include "lector.h"
 #include <stdio.h>
 
-int main(){
+int main() {
     float NF = comparar(correccio, respostes);
     if(PREGUNTES == 10){
         printf("\nNF = %.2f\n", NF);
